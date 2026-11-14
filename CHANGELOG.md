@@ -17,6 +17,8 @@ All notable changes to this project are documented here. The format follows
 - The extension no longer exposes remote AI provider configuration or an API-key chat mode. The
   side panel now only lists and messages local MCP agents; daemon-level provider support remains
   internal and is not reachable from the extension.
+- Remove the side-panel chat input and agent picker. The panel now focuses on approvals and a
+  read-only shared-context feed; conversations happen in the local agent's own client.
 
 ### Fixed
 

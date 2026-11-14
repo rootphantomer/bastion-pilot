@@ -418,30 +418,11 @@ chrome.runtime.onConnect.addListener((port) => {
   if (port.name === 'panel') {
     panelPorts.add(port);
     port.onMessage.addListener(
-      (msg: {
-        kind?: string;
-        chatId?: string;
-        text?: string;
-        targetAgentId?: string;
-        requestId?: string;
-        limit?: number;
-        approved?: boolean;
-      }) => {
+      (msg: { kind?: string; requestId?: string; limit?: number; approved?: boolean }) => {
         switch (msg.kind) {
-          case 'agent-message':
-            if (msg.text)
-              daemon.send('shared_context_append', {
-                role: 'user',
-                content: msg.text,
-                chatId: msg.chatId,
-                targetAgentId: msg.targetAgentId,
-                requestId: msg.requestId,
-              });
-            break;
           case 'get-shared-context':
             daemon.send('shared_context_get', {
               limit: msg.limit ?? 50,
-              targetAgentId: msg.targetAgentId,
             });
             break;
           case 'approval-response':

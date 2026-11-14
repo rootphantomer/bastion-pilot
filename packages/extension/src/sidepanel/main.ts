@@ -1,6 +1,7 @@
 /**
- * Side panel: thin chat client. All state lives in the daemon; this file only
- * renders the transcript and forwards user actions over the 'panel' port.
+ * Side panel: approval and shared-context monitor. All state lives in the
+ * daemon; this file renders approvals and read-only agent context over the
+ * 'panel' port.
  */
 
 interface StateMessage {
@@ -33,25 +34,17 @@ type PortMessage = StateMessage | ChatEventMessage;
 const port = chrome.runtime.connect({ name: 'panel' });
 
 const transcript = document.getElementById('transcript')!;
-const input = document.getElementById('input') as HTMLTextAreaElement;
-const sendBtn = document.getElementById('send-btn') as HTMLButtonElement;
-const abortBtn = document.getElementById('abort-btn') as HTMLButtonElement;
 const statusDot = document.getElementById('status-dot')!;
 const sessionSelect = document.getElementById('session-select') as HTMLSelectElement;
 const modeStatus = document.getElementById('mode-status')!;
-const agentSelect = document.getElementById('agent-select') as HTMLSelectElement;
-const newChatBtn = document.getElementById('new-chat') as HTMLButtonElement;
 const approvalsEl = document.getElementById('approvals')!;
 const emptyHint = document.querySelector('.empty-hint');
 const activityEl = document.getElementById('activity')!;
 const activityText = document.getElementById('activity-text')!;
 
-let busy = false;
 let agentConnected = false;
-let selectedAgentId = '';
 let sharedReplayRendered = false;
-let pendingAgentRequestId: string | null = null;
-let agentRequestTimer: number | null = null;
+let replayRequested = false;
 
 function postToBackground(message: unknown) {
   try {
@@ -66,28 +59,13 @@ function scrollBottom() {
   transcript.scrollTop = transcript.scrollHeight;
 }
 
-function setBusy(value: boolean) {
-  busy = value;
-  abortBtn.classList.toggle('hidden', !value);
-  activityEl.classList.toggle('active', value);
-  if (!value) setActivity('就绪 · 等待你的指令', false);
-}
-
-function setActivity(text: string, active = busy) {
+function setActivity(text: string, active = false) {
   activityText.textContent = text;
   activityEl.classList.toggle('active', active);
 }
 
 function removeEmptyHint() {
   emptyHint?.remove();
-}
-
-function addUserMessage(text: string) {
-  const div = document.createElement('div');
-  div.className = 'msg user';
-  div.textContent = text;
-  transcript.appendChild(div);
-  scrollBottom();
 }
 
 function addErrorMessage(text: string) {
@@ -161,31 +139,9 @@ function renderState(state: StateMessage) {
   statusDot.className = `dot ${state.connected ? 'dot-on' : 'dot-off'}`;
   statusDot.title = state.connected ? '本地服务已连接' : '本地服务未连接';
   modeStatus.textContent = agentConnected
-    ? `Agent 已连接${state.agentNames.length ? ` · ${state.agentNames.join('、')}` : ''}`
+    ? `本地 Agent 已连接${state.agentNames.length ? ` · ${state.agentNames.join('、')}` : ''}`
     : '等待本地 Agent（MCP）';
   modeStatus.className = `mode-status ${agentConnected ? 'ok' : ''}`;
-  agentSelect.textContent = '';
-  const placeholder = document.createElement('option');
-  placeholder.value = '';
-  placeholder.textContent = state.agents.length
-    ? '选择本地 Agent 对话（选择后读取上下文）'
-    : '等待本地 Agent';
-  agentSelect.appendChild(placeholder);
-  for (const agent of state.agents) {
-    const option = document.createElement('option');
-    option.value = agent.agentId;
-    option.textContent = agent.conversationId
-      ? `${agent.label} · ${agent.conversationId.slice(0, 12)}`
-      : agent.label;
-    agentSelect.appendChild(option);
-  }
-  if (!state.agents.some((agent) => agent.agentId === selectedAgentId)) {
-    selectedAgentId = '';
-  }
-  if (state.agents.some((agent) => agent.agentId === selectedAgentId)) {
-    agentSelect.value = selectedAgentId;
-  }
-  agentSelect.disabled = state.agents.length === 0;
 
   sessionSelect.textContent = '';
   if (state.sessions.length === 0) {
@@ -203,10 +159,22 @@ function renderState(state: StateMessage) {
       sessionSelect.appendChild(option);
     }
   }
+
   renderApprovals(state.approvals);
-  if (!busy)
-    setActivity(state.connected ? '已连接 · 等待你的指令' : '未连接本地服务 · 请打开设置', false);
-  if (state.connected) removeEmptyHint();
+  setActivity(
+    !state.connected
+      ? '未连接本地服务 · 请打开设置'
+      : state.approvals.length > 0
+        ? `等待审批 · ${state.approvals.length} 项`
+        : '已连接 · 等待审批',
+    state.approvals.length > 0
+  );
+
+  if (state.connected && !replayRequested) {
+    replayRequested = true;
+    postToBackground({ kind: 'get-shared-context', limit: 50 });
+  }
+
   const hookHint = document.getElementById('hook-hint');
   if (hookHint) {
     hookHint.classList.toggle('hidden', !(state.connected && state.sessions.length === 0));
@@ -218,31 +186,10 @@ function handleChatEvent(message: ChatEventMessage['message']) {
   switch (message.type) {
     case 'shared_context_event': {
       const entry = payload.entry as
-        | {
-            source?: string;
-            role?: string;
-            content?: string;
-            targetAgentId?: string;
-            requestId?: string;
-          }
-        | undefined;
-      if (
-        entry?.source === 'mcp' &&
-        entry.content &&
-        (!entry.targetAgentId || entry.targetAgentId === selectedAgentId)
-      ) {
+        { source?: string; role?: string; content?: string } | undefined;
+      if (entry?.source === 'mcp' && entry.content) {
+        removeEmptyHint();
         addSharedAgentMessage(entry.role ?? 'note', entry.content);
-        if (
-          entry.role === 'assistant' &&
-          pendingAgentRequestId &&
-          entry.requestId === pendingAgentRequestId
-        ) {
-          pendingAgentRequestId = null;
-          if (agentRequestTimer !== null) window.clearTimeout(agentRequestTimer);
-          agentRequestTimer = null;
-          setBusy(false);
-          setActivity('本地 Agent 已回写 · 可以继续', false);
-        }
       }
       break;
     }
@@ -254,22 +201,23 @@ function handleChatEvent(message: ChatEventMessage['message']) {
         role?: string;
         content?: string;
         chatId?: string;
-        targetAgentId?: string;
-        requestId?: string;
       }>;
+      let rendered = 0;
       for (const entry of entries) {
         if (!entry.content || entry.source === 'agent') continue;
-        if (entry.targetAgentId && entry.targetAgentId !== selectedAgentId) continue;
-        if (entry.source === 'panel' && entry.role === 'user' && !entry.chatId)
+        if (entry.source === 'panel' && entry.role === 'user' && !entry.chatId) {
           addSharedAgentMessage('user', entry.content);
-        else if (entry.source === 'mcp') addSharedAgentMessage(entry.role ?? 'note', entry.content);
+          rendered += 1;
+        } else if (entry.source === 'mcp') {
+          addSharedAgentMessage(entry.role ?? 'note', entry.content);
+          rendered += 1;
+        }
       }
+      if (rendered > 0) removeEmptyHint();
       break;
     }
     case 'error':
-      abortBtn.disabled = false;
       addErrorMessage(String((payload as { message?: string }).message ?? '未知错误'));
-      setBusy(false);
       break;
     default:
       break;
@@ -280,88 +228,11 @@ port.onMessage.addListener((msg: PortMessage) => {
   if (msg.kind === 'state') {
     renderState(msg);
   } else if (msg.kind === 'chat-event') {
-    removeEmptyHint();
     handleChatEvent(msg.message);
   }
 });
 
 postToBackground({ kind: 'get-state' });
-
-function sendToAgent(text: string) {
-  if (!agentConnected) {
-    addErrorMessage('本地 Agent 尚未连接。请启动 Claude Code 或 Codex，并配置 bastion-pilot MCP。');
-    setBusy(false);
-    return;
-  }
-  if (!selectedAgentId) {
-    addErrorMessage('请先选择一个本地 Agent 对话。');
-    setBusy(false);
-    return;
-  }
-  const requestId = crypto.randomUUID();
-  pendingAgentRequestId = requestId;
-  if (agentRequestTimer !== null) window.clearTimeout(agentRequestTimer);
-  agentRequestTimer = window.setTimeout(() => {
-    if (pendingAgentRequestId !== requestId) return;
-    pendingAgentRequestId = null;
-    setBusy(false);
-    setActivity('本地 Agent 响应超时 · 请确认 Agent 已读取共享上下文', false);
-    addErrorMessage(
-      '本地 Agent 暂未回写响应。请在 Agent 对话中调用 get_shared_context 后，使用 append_shared_context 回答。'
-    );
-  }, 120_000);
-  setBusy(true);
-  setActivity('已发送至选中的 Agent 对话 · 等待回写…', true);
-  postToBackground({ kind: 'agent-message', text, targetAgentId: selectedAgentId, requestId });
-}
-
-function send() {
-  const text = input.value.trim();
-  if (!text) return;
-  removeEmptyHint();
-  addUserMessage(text);
-  input.value = '';
-  sendToAgent(text);
-}
-
-function resetConversation() {
-  if (busy) {
-    addErrorMessage('当前任务仍在执行，请先停止后再新建对话。');
-    return;
-  }
-  sharedReplayRendered = false;
-  pendingAgentRequestId = null;
-  if (agentRequestTimer !== null) {
-    window.clearTimeout(agentRequestTimer);
-    agentRequestTimer = null;
-  }
-  transcript.textContent = '';
-  const hint = document.createElement('div');
-  hint.className = 'empty-hint';
-  hint.innerHTML =
-    '<p class="welcome-title">新对话已准备好</p><p>描述你的目标，执行前会显示审批卡片。</p>';
-  transcript.appendChild(hint);
-  setActivity('新对话已准备好 · 等待本地 Agent', false);
-}
-
-sendBtn.addEventListener('click', send);
-newChatBtn.addEventListener('click', resetConversation);
-abortBtn.addEventListener('click', () => {
-  abortBtn.disabled = true;
-  if (agentRequestTimer !== null) {
-    window.clearTimeout(agentRequestTimer);
-    agentRequestTimer = null;
-  }
-  pendingAgentRequestId = null;
-  setBusy(false);
-  setActivity('已停止等待 · 本地 Agent 仍可能继续执行', false);
-});
-input.addEventListener('keydown', (ev) => {
-  if (ev.key === 'Enter' && !ev.shiftKey && !ev.isComposing) {
-    ev.preventDefault();
-    send();
-  }
-});
 
 document.getElementById('open-options')!.addEventListener('click', () => {
   chrome.runtime.openOptionsPage();
@@ -369,16 +240,4 @@ document.getElementById('open-options')!.addEventListener('click', () => {
 document.getElementById('empty-options-link')?.addEventListener('click', (ev) => {
   ev.preventDefault();
   chrome.runtime.openOptionsPage();
-});
-
-agentSelect.addEventListener('change', () => {
-  if (agentRequestTimer !== null) window.clearTimeout(agentRequestTimer);
-  agentRequestTimer = null;
-  pendingAgentRequestId = null;
-  if (busy) setBusy(false);
-  selectedAgentId = agentSelect.value;
-  sharedReplayRendered = false;
-  if (selectedAgentId) {
-    postToBackground({ kind: 'get-shared-context', targetAgentId: selectedAgentId, limit: 50 });
-  }
 });

@@ -12,7 +12,7 @@ BastionPilot fixes that: a browser extension hooks the web terminal and acts as 
 and eyes_, while a local bridge exposes clean, auditable tools to any AI brain you prefer.
 
 ```
-Claude Code / Codex            Side-panel chat
+Claude Code / Codex            Side panel
    (MCP stdio)                       │
         │                            │ shared context
         ▼                            ▼
@@ -41,9 +41,9 @@ Claude Code / Codex            Side-panel chat
   can type into the terminal on request. Whatever the bastion product renders — xterm.js on
   canvas, WebGL, anything — the raw stream is captured before it is drawn.
 - **Everything else connects to it.** Claude Code / Codex and other MCP clients talk to the
-  daemon's MCP server; the side panel lists the connected agent conversations and exchanges
-  shared context with them. The extension never configures or calls a remote AI provider. Both
-  paths funnel through the same tool executor, approval policy and audit log.
+  daemon's MCP server. The side panel is an approval and read-only shared-context monitor: it has
+  no chat input. The extension never configures or calls a remote AI provider. Both paths funnel
+  through the same tool executor, approval policy and audit log.
 - **Output is made LLM-ready.** PTY bytes are decoded (UTF-8, chunk-safe), ANSI/OSC escape
   sequences are stripped, `\r`/`\b` overwrite semantics are applied (progress bars collapse into
   their final line), and oversized output is written to a local file whose path is returned to the
@@ -61,7 +61,7 @@ Claude Code / Codex            Side-panel chat
 | Brain                                | How to connect                                            |
 | ------------------------------------ | --------------------------------------------------------- |
 | Claude Code / Codex / any MCP client | `bastion-pilot mcp` (stdio) — recommended                 |
-| Side-panel chat                      | pick a connected local agent conversation over shared MCP |
+| Side panel                           | approvals + read-only shared context from local MCP agents |
 
 Tools exposed to agents: `list_sessions`, `send_command`, `read_output`, `wait_output`,
 `send_key`, `get_screen`, `upload_file`, `download_file` — see
@@ -137,13 +137,12 @@ Then, in your agent, ask something like: _"list the bastion sessions, and on web
 usage"_. The agent will call `list_sessions`, then `send_command df -h`, read the output, and
 answer — subject to your approval mode.
 
-**Local-agent side panel** — the extension does not configure remote AI providers or offer an
-API-key chat mode. Start Claude Code / Codex with the `bastion-pilot mcp` server configured, open
-the side panel, then pick that agent conversation in the header. Messages are delivered through
-`get_shared_context` / `append_shared_context`; set `BASTION_PILOT_CONVERSATION_ID` (or
+**Approval and context side panel** — the extension does not configure remote AI providers, offer
+an API-key chat mode, or accept chat input. Talk to Claude Code / Codex in their own clients with
+the `bastion-pilot mcp` server configured. The side panel surfaces approval cards and a read-only
+feed of shared context written by local agents; set `BASTION_PILOT_CONVERSATION_ID` (or
 `CODEX_THREAD_ID`) in the MCP process environment for a human-readable conversation identity.
-Shared context lives under `~/.bastion-pilot/`, and the selected agent uses the same terminal,
-approval and audit path as any other MCP client.
+Every agent uses the same terminal, approval and audit path.
 
 ## Configuration
 

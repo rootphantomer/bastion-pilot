@@ -11,7 +11,7 @@
 “手和眼”；一个本地 bridge 把干净、可审计的工具暴露给你选用的任意 AI 大脑。
 
 ```
-Claude Code / Codex            侧边栏聊天
+Claude Code / Codex            侧边栏
    (MCP stdio)                       │
         │                            │ 共享上下文
         ▼                            ▼
@@ -37,9 +37,9 @@ Claude Code / Codex            侧边栏聊天
 - **插件是终端 I/O 的唯一持有者。** 一段主世界脚本在 `document_start` 注入，替换
   `window.WebSocket`：把每一帧下行数据（PTY 字节流）镜像出来，并可以按需向终端写入。不管堡垒
   机产品怎么渲染——canvas 上的 xterm.js、WebGL、随便什么——原始流在绘制之前就已被捕获。
-- **其他所有大脑都连到它。** Claude Code / Codex 等 MCP 客户端走 daemon 的 MCP Server；侧边栏
-  列出已连接的本地 Agent 对话并通过共享上下文与它们交互。插件本身不配置、也不调用任何远程
-  AI 服务商。两条路径汇入同一套工具执行器、审批策略和审计日志。
+- **其他所有大脑都连到它。** Claude Code / Codex 等 MCP 客户端走 daemon 的 MCP Server。侧边栏
+  只负责审批卡片和只读的共享上下文，不提供聊天输入。插件本身不配置、也不调用任何远程 AI
+  服务商。两条路径汇入同一套工具执行器、审批策略和审计日志。
 - **输出被加工成模型友好的形态。** PTY 字节流被解码（UTF-8；Guacamole 流自动识别
   GB18030，跨块安全），ANSI/OSC 转义序列被
   剥离，`\r`/`\b` 的覆盖语义被正确应用（进度条塌缩成最终一行）；超长输出落盘到本地文件并把路
@@ -55,7 +55,7 @@ Claude Code / Codex            侧边栏聊天
 | 大脑                                  | 接入方式                                      |
 | ------------------------------------- | --------------------------------------------- |
 | Claude Code / Codex / 任何 MCP 客户端 | `bastion-pilot mcp`（stdio）— 推荐            |
-| 侧边栏聊天                            | 选择一个已连接的本地 Agent 对话（共享上下文） |
+| 侧边栏                                | 审批卡片 + 本地 Agent 的只读共享上下文        |
 
 暴露给 Agent 的工具：`list_sessions`、`send_command`、`read_output`、`wait_output`、
 `send_key`、`get_screen`、`upload_file`、`download_file` —— 完整契约见
@@ -136,13 +136,12 @@ MCP 客户端还会看到两个共享上下文工具：
 共享上下文会保存到 `~/.bastion-pilot/shared-context.json`，侧边栏会实时显示来自本地 Agent 的消息。
 它只同步对话背景；当前目录、文件和服务状态仍必须重新调用终端工具确认。
 
-**本地 Agent 侧边栏** — 插件不再提供远程 AI 服务商配置，也不再有 API Key 聊天模式。给 Claude
-Code / Codex 配好 `bastion-pilot mcp` 后启动，打开侧边栏，在顶部选择对应的 Agent 对话即可。
-消息通过 `get_shared_context` / `append_shared_context` 传递；为识别对话，可在 MCP 进程环境中
-设置 `BASTION_PILOT_CONVERSATION_ID`（Codex 也会尝试读取 `CODEX_THREAD_ID`）。
-共享上下文保存在 `~/.bastion-pilot/`，选中的 Agent 与其他 MCP 客户端走同一套终端、审批和审计
-链路。插件不会扫描桌面应用的私有数据库；只有通过 MCP 连接并上报身份的本地 Agent 对话会出现在
-列表中。
+**审批与上下文侧边栏** — 插件不再提供远程 AI 服务商配置、API Key 聊天模式或聊天输入框。请在
+Claude Code / Codex 自己的客户端里对话，并配好 `bastion-pilot mcp`。侧边栏只显示审批卡片和
+本地 Agent 写入的只读共享上下文；为识别对话，可在 MCP 进程环境中设置
+`BASTION_PILOT_CONVERSATION_ID`（Codex 也会尝试读取 `CODEX_THREAD_ID`）。
+所有 Agent 走同一套终端、审批和审计链路。插件不会扫描桌面应用的私有数据库；只有通过 MCP
+连接并上报身份的本地 Agent 对话会出现在状态中。
 
 历史记录只作为背景，不代表当前服务器状态。查询当前目录、文件、服务等状态时，需要在本轮重新
 发现终端并执行相应命令；如果没有终端、执行失败或被拒绝，应明确提示无法确认，而不是复用旧结果。
