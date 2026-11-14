@@ -4,10 +4,18 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project adheres to
 [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [0.2.3-no-remote-ai] - 2026-11-14
+
+This release ships **without remote AI provider support** and is published as a
+separate line from future builds that keep the remote provider feature. The
+extension has no provider settings, no API-key chat mode and no side-panel chat
+input; the side panel is limited to approvals, audit activity and read-only
+shared context. Local MCP agents (Claude Code, Codex, ...) are unaffected.
 
 ### Added
 
+- Anheng Mingyu (安恒明御) V2.0 bastion support: Guacamole framing, GB18030
+  terminal output detection, and cleaned command results.
 - Add a side-panel picker for connected local-agent conversations.
 - MCP connections advertise an agent/conversation identity, allowing panel messages to be routed to
   one Codex or Claude Code process instead of broadcasting to every local agent.
