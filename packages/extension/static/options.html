@@ -50,7 +50,22 @@
       </section>
 
       <section>
-        <h2><span>03</span> 审批与审计</h2>
+        <h2><span>03</span> 终端行为</h2>
+        <label class="toggle-row">
+          <input id="hidden-sentinel" type="checkbox" />
+          <span>
+            <strong>命令完成标记不脏屏（实验性）</strong>
+            <small>
+              默认关闭，使用传统可见标记。开启后，用于判定命令结束的哨兵会擦掉自己的回显，
+              并通过不可见转义序列回传退出码。该设置对之后执行的命令立即生效。
+            </small>
+          </span>
+        </label>
+        <p id="sentinel-result" class="result"></p>
+      </section>
+
+      <section>
+        <h2><span>04</span> 审批与审计</h2>
         <p class="hint">
           审批与审计由本地服务统一控制。默认严格模式会在每条终端命令、按键和文件操作前
           显示审批卡片；未批准或超时都会拒绝执行。高级用户可在
@@ -59,7 +74,7 @@
       </section>
 
       <section class="agent-card">
-        <h2><span>04</span> 本地 Agent 与会话</h2>
+        <h2><span>05</span> 本地 Agent 与会话</h2>
         <p class="hint">Claude Code、Codex 等本地 Agent 可以通过 MCP 使用同一个终端、审批和审计链路，并通过共享上下文工具与侧边栏继续同一项工作。</p>
         <div class="agent-steps">
           <code>bastion-pilot mcp</code>

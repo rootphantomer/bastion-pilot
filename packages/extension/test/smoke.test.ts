@@ -106,6 +106,20 @@ describe('extension removal smoke', () => {
     expect(source).not.toContain('apiKey');
   });
 
+  it('exposes the hidden-sentinel switch on the options page', () => {
+    const html = readStatic('options.html');
+    expect(html).toContain('id="hidden-sentinel"');
+    expect(html).toContain('命令完成标记不脏屏');
+
+    const source = readSource('options/main.ts');
+    expect(source).toMatch(/hiddenSentinel/);
+    expect(source).toMatch(/chrome\.storage\.sync\s*\.set/);
+
+    const controller = readSource('content/controller.ts');
+    expect(controller).toContain('setHiddenSentinel');
+    expect(controller).toMatch(/hiddenSentinel:\s*this\.settings\?\.hiddenSentinel === true/);
+  });
+
   it('keeps the side panel approval-only with no chat controls', () => {
     const html = readStatic('sidepanel.html');
     expect(html).not.toMatch(

@@ -48,10 +48,11 @@ Claude Code / Codex            Side panel
   sequences are stripped, `\r`/`\b` overwrite semantics are applied (progress bars collapse into
   their final line), and oversized output is written to a local file whose path is returned to the
   agent — Claude Code can then read the full file with its own tools.
-- **Command completion is detected reliably.** After typing a command, BastionPilot appends an
-  `echo __BP_<nonce>_$?__` sentinel. The literal `$?` in the echoed input can never match the
-  result pattern, so the sentinel resolves exactly once, carrying the exit code. Quiet detection
-  and timeouts back it up for interactive situations.
+- **Command completion is detected reliably.** After typing a command, BastionPilot appends a
+  sentinel that carries the exit code. By default the marker is visible; enable “命令完成标记不脏屏”
+  in the extension settings to erase the echoed sentinel line and report the code inside an APC
+  string (which terminals consume without drawing). The exit code resolves exactly once; quiet
+  detection and timeouts back it up for interactive situations.
 - **Products are abstracted into thin profiles.** WebSocket transport is universal; framing
   (raw / JSON / base64 / Guacamole) and DOM hints live in declarative site profiles. JumpServer and
   Anheng Mingyu V2.0 ship built in; anything xterm.js-based works with the generic profile.

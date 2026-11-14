@@ -4,6 +4,15 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- Add an opt-in hidden completion sentinel (“命令完成标记不脏屏” in extension
+  settings). The sentinel erases its own echo and reports the exit code inside
+  an APC string, so the bastion terminal view stays clean. Off by default; the
+  visible `echo` sentinel remains the fallback.
+
 ## [0.2.3-no-remote-ai] - 2026-11-14
 
 This release ships **without remote AI provider support** and is published as a

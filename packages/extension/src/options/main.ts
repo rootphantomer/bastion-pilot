@@ -15,9 +15,15 @@ interface Settings {
   token: string;
   sites: SiteEntry[];
   defaultWaitMs?: number;
+  hiddenSentinel?: boolean;
 }
 
-const DEFAULTS: Settings = { daemonUrl: 'ws://127.0.0.1:8765', token: '', sites: [] };
+const DEFAULTS: Settings = {
+  daemonUrl: 'ws://127.0.0.1:8765',
+  token: '',
+  sites: [],
+  hiddenSentinel: false,
+};
 
 const urlInput = document.getElementById('daemon-url') as HTMLInputElement;
 const tokenInput = document.getElementById('token') as HTMLInputElement;
@@ -28,6 +34,8 @@ const siteInput = document.getElementById('site-input') as HTMLInputElement;
 const addSiteBtn = document.getElementById('add-site-btn') as HTMLButtonElement;
 const siteList = document.getElementById('site-list') as HTMLUListElement;
 const permissionHint = document.getElementById('permission-hint') as HTMLElement;
+const hiddenSentinelInput = document.getElementById('hidden-sentinel') as HTMLInputElement;
+const sentinelResult = document.getElementById('sentinel-result') as HTMLElement;
 document.querySelector('.ver')!.textContent = `v${chrome.runtime.getManifest().version}`;
 
 let settings: Settings = { ...DEFAULTS };
@@ -41,6 +49,7 @@ async function load() {
   }
   urlInput.value = settings.daemonUrl;
   tokenInput.value = settings.token;
+  hiddenSentinelInput.checked = settings.hiddenSentinel === true;
   renderSites();
 }
 
@@ -57,6 +66,22 @@ function setTestResult(text: string, cls: 'ok' | 'err' | '') {
 }
 
 saveBtn.addEventListener('click', () => void save());
+
+hiddenSentinelInput.addEventListener('change', () => {
+  settings.hiddenSentinel = hiddenSentinelInput.checked;
+  sentinelResult.textContent = '正在保存…';
+  sentinelResult.className = 'result';
+  chrome.storage.sync
+    .set({ [SETTINGS_KEY]: settings })
+    .then(() => {
+      sentinelResult.textContent = '已保存，新命令立即生效。';
+      sentinelResult.className = 'result ok';
+    })
+    .catch((err) => {
+      sentinelResult.textContent = `保存失败：${(err as Error).message}`;
+      sentinelResult.className = 'result err';
+    });
+});
 
 testBtn.addEventListener('click', () => {
   const url = urlInput.value.trim() || DEFAULTS.daemonUrl;

@@ -29,6 +29,12 @@ export interface SessionOptions {
    * typing is always used for interactive keystrokes.
    */
   bracketedPaste?: boolean | null;
+  /**
+   * Keep the completion sentinel off the visible terminal view (default false).
+   * Enabling this uses the invisible marker; otherwise the legacy visible
+   * `echo __BP_..._$?__` form is used.
+   */
+  hiddenSentinel?: boolean;
   /** Strip shell echo, prompts and sentinel markers from command results. */
   cleanOutput?: boolean;
 }
@@ -71,9 +77,12 @@ export class TerminalSession {
   private readonly ring = new TextRingBuffer(200_000);
   private readonly decoder = new TextDecoder('utf-8');
   private readonly waiters: SentinelWaiter[] = [];
-  private scanTail = '';
+  /** Recent undigested PTY text; hidden sentinels are erased from the screen,
+   * so they are only ever findable here. */
+  private rawTail = '';
   private lastDataAt = 0;
   private bracketedPaste: boolean | null;
+  private hiddenSentinel: boolean;
   private readonly cleanOutput: boolean;
 
   constructor(
@@ -87,6 +96,7 @@ export class TerminalSession {
     this.sessionId = `sess_${Math.random().toString(36).slice(2, 10)}${Date.now().toString(36).slice(-4)}`;
     this.framer = createFramer(profile.framer);
     this.bracketedPaste = opts.bracketedPaste ?? null;
+    this.hiddenSentinel = opts.hiddenSentinel === true;
     this.cleanOutput = opts.cleanOutput === true;
     this.info = {
       sessionId: this.sessionId,
@@ -119,19 +129,27 @@ export class TerminalSession {
   }
 
   private append(text: string) {
+    this.rawTail = (this.rawTail + text).slice(-SCAN_TAIL_CHARS);
     const completed = this.renderer.push(text);
     if (completed.length > 0) {
       const split = completed.split('\n');
       split.pop(); // push() always terminates completed lines with '\n'
-      this.ring.writeLines(split.map((l) => l + '\n'));
-      this.scanTail = (this.scanTail + completed).slice(-SCAN_TAIL_CHARS);
+      const lines = split
+        .map((l) => l + '\n')
+        .filter((l) => !(this.hiddenSentinel && SENTINEL_ECHO.test(l)));
+      if (lines.length > 0) this.ring.writeLines(lines);
     }
     this.lastActivityAt = Date.now();
     this.checkWaiters();
   }
 
   private scanText(): string {
-    return this.scanTail + this.renderer.pending();
+    return this.rawTail;
+  }
+
+  /** Toggle the invisible sentinel without recreating the session. */
+  setHiddenSentinel(hidden: boolean) {
+    this.hiddenSentinel = hidden;
   }
 
   private checkWaiters() {
@@ -195,8 +213,11 @@ export class TerminalSession {
 
   /**
    * Type a command and watch its execution:
-   * - sentinel attached: resolve when `echo __BP_..._$?__` prints (exit code
-   *   included), when output goes quiet, or when the wait elapses;
+   * - sentinel attached: resolve when the `__BP_<nonce>_<code>__` marker reaches
+   *   the raw PTY stream (exit code included), when output goes quiet, or when
+   *   the wait elapses. With the hidden-sentinel setting enabled the marker
+   *   also erases its own line, so the view shows only the command the agent
+   *   typed;
    * - no sentinel (interactive dialogs): resolve on quiet or timeout only.
    *
    * The first sentinel-attached command probes the shell for bracketed-paste
@@ -227,10 +248,13 @@ export class TerminalSession {
     if (this.bracketedPaste) {
       const cmd = command.replace(/\n+$/, '');
       this.typeText(
-        `${BRACKETED_PASTE_START}${cmd}${BRACKETED_PASTE_END}\n${sentinelCommandFor(nonce)}\n`
+        `${BRACKETED_PASTE_START}${cmd}${BRACKETED_PASTE_END}\n${sentinelCommandFor(
+          nonce,
+          this.hiddenSentinel
+        )}\n`
       );
     } else {
-      this.typeText(wrapCommandWithSentinel(command, nonce));
+      this.typeText(wrapCommandWithSentinel(command, nonce, this.hiddenSentinel));
     }
 
     const raced = await Promise.race([
@@ -257,7 +281,10 @@ export class TerminalSession {
     const { waiter, done } = this.addWaiter(nonce);
     const sentAt = Date.now();
     this.typeText(
-      `${BRACKETED_PASTE_START}true${BRACKETED_PASTE_END}\n${sentinelCommandFor(nonce)}\n`
+      `${BRACKETED_PASTE_START}true${BRACKETED_PASTE_END}\n${sentinelCommandFor(
+        nonce,
+        this.hiddenSentinel
+      )}\n`
     );
     const raced = await Promise.race([
       done.then(() => 'completed' as const),
@@ -347,6 +374,12 @@ export class TerminalSession {
 }
 
 const SENTINEL_LINE = /__BP_[0-9a-f]{8}_/;
+/**
+ * Shell echo of the sentinel command line. In hidden mode the renderer drops
+ * its escape sequences but keeps the nonce and the literal `%s` / `$?`, and
+ * the line is never useful to a reader, so it stays out of the output buffer.
+ */
+const SENTINEL_ECHO = /__BP_[0-9a-f]{8}_(\$\?|%s)__/;
 const PROMPT_ONLY = /^\s*(?:\[[^\]]+\]|[\w.-]+@[\w.:~/-]+)\s*[#$>]\s*$/;
 
 /**
