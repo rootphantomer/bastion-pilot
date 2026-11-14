@@ -16,14 +16,7 @@
       <select id="session-select" title="当前终端会话" disabled>
         <option value="">未连接终端</option>
       </select>
-      <label class="mode-picker" title="选择对话入口">
-        <span>模式</span>
-        <select id="chat-mode">
-          <option value="provider">API Key</option>
-          <option value="agent">本地 Agent</option>
-        </select>
-      </label>
-      <select id="agent-select" class="agent-select hidden" title="选择本地 Agent 对话">
+      <select id="agent-select" class="agent-select" title="选择本地 Agent 对话">
         <option value="">选择本地 Agent</option>
       </select>
       <button id="new-chat" class="icon-btn" title="新建对话">＋</button>
@@ -37,7 +30,7 @@
         <p>
           1. 启动本地服务：<code>bastion-pilot daemon</code><br />
           2. 在<a href="#" id="empty-options-link">设置</a>中填入配对令牌<br />
-          3. 打开堡垒机终端页面，在顶部选择 <strong>API Key</strong> 或 <strong>本地 Agent</strong>；本地 Agent 模式只会在你选择具体对话后读取上下文。
+          3. 打开堡垒机终端页面，在顶部选择一个 <strong>本地 Agent</strong> 对话；只有你选择具体对话后才会读取上下文。
         </p>
         <p id="hook-hint" class="hidden">
           已经打开终端页面？授予站点权限后刷新一次页面，插件会在页面加载时自动接管终端。
@@ -49,9 +42,8 @@
       <div id="approvals" class="approvals"></div>
       <div id="activity" class="activity" aria-live="polite">
         <span class="activity-pulse"></span><span id="activity-text">就绪 · 等待你的指令</span>
-        <span id="queue-count" class="queue-count hidden"></span>
       </div>
-      <div id="mode-status" class="mode-status">使用 API Key</div>
+      <div id="mode-status" class="mode-status">等待本地 Agent（MCP）</div>
       <div class="composer-row">
         <textarea
           id="input"

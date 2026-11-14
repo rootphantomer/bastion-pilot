@@ -13,11 +13,11 @@
 ```
 Claude Code / Codex            侧边栏聊天
    (MCP stdio)                       │
-        │                            │ HTTPS → 你的 AI Provider
+        │                            │ 共享上下文
         ▼                            ▼
 ┌─────────────────────────────────────────────┐
 │            本地 bridge（守护进程）             │
-│  MCP Server │ 内置 Agent 循环 │ 审批 │ 审计日志  │
+│  MCP Server │ 共享上下文 │ 审批 │ 审计日志     │
 └──────────────┬──────────────────────────────┘
                │ ws://127.0.0.1 + 配对 token
                ▼
@@ -37,9 +37,9 @@ Claude Code / Codex            侧边栏聊天
 - **插件是终端 I/O 的唯一持有者。** 一段主世界脚本在 `document_start` 注入，替换
   `window.WebSocket`：把每一帧下行数据（PTY 字节流）镜像出来，并可以按需向终端写入。不管堡垒
   机产品怎么渲染——canvas 上的 xterm.js、WebGL、随便什么——原始流在绘制之前就已被捕获。
-- **其他所有大脑都连到它。** Claude Code / Codex 走 daemon 的 MCP Server；侧边栏聊天走 daemon
-  里内置的 Agent 循环（用你自己的 OpenAI 兼容 Provider）。两种大脑汇入同一套工具执行器、同一
-  份审批策略、同一份审计日志。
+- **其他所有大脑都连到它。** Claude Code / Codex 等 MCP 客户端走 daemon 的 MCP Server；侧边栏
+  列出已连接的本地 Agent 对话并通过共享上下文与它们交互。插件本身不配置、也不调用任何远程
+  AI 服务商。两条路径汇入同一套工具执行器、审批策略和审计日志。
 - **输出被加工成模型友好的形态。** PTY 字节流被解码（UTF-8；Guacamole 流自动识别
   GB18030，跨块安全），ANSI/OSC 转义序列被
   剥离，`\r`/`\b` 的覆盖语义被正确应用（进度条塌缩成最终一行）；超长输出落盘到本地文件并把路
@@ -52,10 +52,10 @@ Claude Code / Codex            侧边栏聊天
 
 ## 你会得到什么
 
-| 大脑                                  | 接入方式                                |
-| ------------------------------------- | --------------------------------------- |
-| Claude Code / Codex / 任何 MCP 客户端 | `bastion-pilot mcp`（stdio）— 推荐      |
-| 内置侧边栏聊天                        | 任意 OpenAI 兼容端点（云端或自建/内网） |
+| 大脑                                  | 接入方式                                      |
+| ------------------------------------- | --------------------------------------------- |
+| Claude Code / Codex / 任何 MCP 客户端 | `bastion-pilot mcp`（stdio）— 推荐            |
+| 侧边栏聊天                            | 选择一个已连接的本地 Agent 对话（共享上下文） |
 
 暴露给 Agent 的工具：`list_sessions`、`send_command`、`read_output`、`wait_output`、
 `send_key`、`get_screen`、`upload_file`、`download_file` —— 完整契约见
@@ -136,35 +136,13 @@ MCP 客户端还会看到两个共享上下文工具：
 共享上下文会保存到 `~/.bastion-pilot/shared-context.json`，侧边栏会实时显示来自本地 Agent 的消息。
 它只同步对话背景；当前目录、文件和服务状态仍必须重新调用终端工具确认。
 
-**内置侧边栏聊天**（可选）— 打开插件的 **设置 → AI 服务商**，选择“添加 API Key 服务”，
-只填写接口 URL 和 API Key，然后点击“获取模型”并选择模型。模型不需要手工输入。
-也可以直接编辑 `~/.bastion-pilot/config.json`：
-
-```json
-{
-  "providers": [
-    {
-      "id": "default",
-      "baseUrl": "https://api.openai.com/v1",
-      "apiKey": "sk-...",
-      "model": "gpt-4o"
-    }
-  ],
-  "activeProviderId": "default"
-}
-```
-
-打开侧边栏后，顶部的“模式”下拉框可以在 **API Key** 和 **本地 Agent** 之间二选一。API Key
-模式由 BastionPilot 直接调用上面的 Provider；本地 Agent 模式会列出通过 BastionPilot MCP
-连接的本地 Agent 对话（包括 Codex/Claude Code 各自的进程），选择后消息只投递给该对话。
-Agent 通过 `get_shared_context` 读取消息，并用 `append_shared_context` 将计划、工具结果和结论
-回写到侧边栏。为识别对话，可在 MCP 进程环境中设置 `BASTION_PILOT_CONVERSATION_ID`（Codex
-也会尝试读取 `CODEX_THREAD_ID`）。
-
-自建/内网网关（vLLM、Ollama 的 OpenAI 适配、公司内部 LLM 网关）配置结构相同——只要你不愿
-意，终端输出可以完全不出内网。侧边栏历史可跨重启恢复：重新打开面板会自动载入最近一次对话。
-插件聊天记录保存在 `~/.bastion-pilot/chats/`，MCP Agent 与侧边栏共享同一套终端、审批和审计状态。
-插件不会扫描桌面应用的私有数据库；只有通过 MCP 连接并上报身份的本地 Agent 对话会出现在列表中。
+**本地 Agent 侧边栏** — 插件不再提供远程 AI 服务商配置，也不再有 API Key 聊天模式。给 Claude
+Code / Codex 配好 `bastion-pilot mcp` 后启动，打开侧边栏，在顶部选择对应的 Agent 对话即可。
+消息通过 `get_shared_context` / `append_shared_context` 传递；为识别对话，可在 MCP 进程环境中
+设置 `BASTION_PILOT_CONVERSATION_ID`（Codex 也会尝试读取 `CODEX_THREAD_ID`）。
+共享上下文保存在 `~/.bastion-pilot/`，选中的 Agent 与其他 MCP 客户端走同一套终端、审批和审计
+链路。插件不会扫描桌面应用的私有数据库；只有通过 MCP 连接并上报身份的本地 Agent 对话会出现在
+列表中。
 
 历史记录只作为背景，不代表当前服务器状态。查询当前目录、文件、服务等状态时，需要在本轮重新
 发现终端并执行相应命令；如果没有终端、执行失败或被拒绝，应明确提示无法确认，而不是复用旧结果。
@@ -181,16 +159,16 @@ Agent 通过 `get_shared_context` 读取消息，并用 `append_shared_context` 
 | `approval.requireUserApproval` | `true`  | 默认所有命令、按键和文件操作都必须由面板明确批准       |
 | `approval.confirmTimeoutMs`  | `120000`  | 审批超时即拒绝                                       |
 | `approval.readonlyAllowlist` | `[]`      | 正则列表；`readonly` 模式下命中的命令放行            |
-| `providers[]`                | `[]`      | 内置聊天用的 OpenAI 兼容 Provider                    |
-| `activeProviderId`           | `null`    | 侧边栏聊天使用的 Provider                            |
-| `agent.maxIterations`        | `30`      | 内置 Agent 循环上限                                  |
-| `agent.systemPrompt`         | 内置      | 替换默认的安全优先提示词                             |
+| `providers[]`                | `[]`      | daemon 内置聊天的 Provider（插件不暴露）             |
+| `activeProviderId`           | `null`    | daemon 内置循环使用的 Provider                       |
+| `agent.maxIterations`        | `30`      | daemon 内置 Agent 循环上限                           |
+| `agent.systemPrompt`         | 内置      | 替换 daemon 默认的安全优先提示词                     |
 | `output.maxInlineChars`      | `6000`    | 超过则截断 + 落盘                                    |
 | `transcripts.enabled`        | `true`    | 按会话记录终端转录到 `~/.bastion-pilot/transcripts/` |
 
-插件侧设置（选项页）：服务地址、配对令牌、AI 服务商、已授权站点及每个站点的
-站点 profile（`generic-xterm` / `jumpserver` / `anheng-mingyu`）。AI Provider 配置由本地 daemon 通过鉴权连接
-保存，不会写入浏览器同步存储。终端命令在默认严格模式下每次都必须经过用户批准；只读的会话发现和输出读取不会改变服务器状态。
+插件侧设置（选项页）：服务地址、配对令牌、已授权站点及每个站点的站点 profile
+（`generic-xterm` / `jumpserver` / `anheng-mingyu`）。插件不保存任何远程 AI 服务商凭据。
+终端命令在默认严格模式下每次都必须经过用户批准；只读的会话发现和输出读取不会改变服务器状态。
 
 ## 常见问题
 

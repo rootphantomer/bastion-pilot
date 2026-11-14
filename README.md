@@ -14,12 +14,12 @@ and eyes_, while a local bridge exposes clean, auditable tools to any AI brain y
 ```
 Claude Code / Codex            Side-panel chat
    (MCP stdio)                       │
-        │                            │ HTTPS → your AI provider
+        │                            │ shared context
         ▼                            ▼
 ┌─────────────────────────────────────────────┐
 │            local bridge (daemon)             │
-│  MCP server │ built-in agent │ approvals │   │
-│              │    loop      │ audit log  │   │
+│  MCP server │ shared context │ approvals │   │
+│              │               │ audit log  │   │
 └──────────────┬──────────────────────────────┘
                │ ws://127.0.0.1 + pairing token
                ▼
@@ -40,10 +40,10 @@ Claude Code / Codex            Side-panel chat
   `document_start` patches `window.WebSocket`, tees every downstream frame (the PTY stream) and
   can type into the terminal on request. Whatever the bastion product renders — xterm.js on
   canvas, WebGL, anything — the raw stream is captured before it is drawn.
-- **Everything else connects to it.** Claude Code / Codex talk to the daemon's MCP server; the
-  side-panel chat uses the daemon's built-in agent loop with your own OpenAI-compatible provider.
-  Both brains funnel through the same tool executor, the same approval policy and the same audit
-  log.
+- **Everything else connects to it.** Claude Code / Codex and other MCP clients talk to the
+  daemon's MCP server; the side panel lists the connected agent conversations and exchanges
+  shared context with them. The extension never configures or calls a remote AI provider. Both
+  paths funnel through the same tool executor, approval policy and audit log.
 - **Output is made LLM-ready.** PTY bytes are decoded (UTF-8, chunk-safe), ANSI/OSC escape
   sequences are stripped, `\r`/`\b` overwrite semantics are applied (progress bars collapse into
   their final line), and oversized output is written to a local file whose path is returned to the
@@ -58,10 +58,10 @@ Claude Code / Codex            Side-panel chat
 
 ## What you get
 
-| Brain                                | How to connect                                                 |
-| ------------------------------------ | -------------------------------------------------------------- |
-| Claude Code / Codex / any MCP client | `bastion-pilot mcp` (stdio) — recommended                      |
-| Built-in side-panel chat             | any OpenAI-compatible endpoint (cloud or self-hosted/intranet) |
+| Brain                                | How to connect                                            |
+| ------------------------------------ | --------------------------------------------------------- |
+| Claude Code / Codex / any MCP client | `bastion-pilot mcp` (stdio) — recommended                 |
+| Side-panel chat                      | pick a connected local agent conversation over shared MCP |
 
 Tools exposed to agents: `list_sessions`, `send_command`, `read_output`, `wait_output`,
 `send_key`, `get_screen`, `upload_file`, `download_file` — see
@@ -137,34 +137,13 @@ Then, in your agent, ask something like: _"list the bastion sessions, and on web
 usage"_. The agent will call `list_sessions`, then `send_command df -h`, read the output, and
 answer — subject to your approval mode.
 
-**Built-in side-panel chat** (optional) — open the extension's **Settings → AI providers**
-section, add an API Key service, enter only its endpoint URL and API key, then click **Fetch
-models** and choose a model. The same settings can also be edited directly in
-`~/.bastion-pilot/config.json`:
-
-```json
-{
-  "providers": [
-    {
-      "id": "default",
-      "baseUrl": "https://api.openai.com/v1",
-      "apiKey": "sk-...",
-      "model": "gpt-4o"
-    }
-  ],
-  "activeProviderId": "default"
-}
-```
-
-The side panel's **Mode** selector is mutually exclusive: **API Key** calls the configured provider
-directly, while **Local Agent** lists connected Claude Code / Codex MCP conversations so you can
-target one conversation. The selected agent reads the request with `get_shared_context` and reports
-back with `append_shared_context`; set `BASTION_PILOT_CONVERSATION_ID` (or `CODEX_THREAD_ID`) in
-the MCP process environment for a human-readable conversation identity.
-
-Self-hosted / intranet gateways (vLLM, Ollama's OpenAI adapter, corporate LLM gateways) work with
-the same shape — the terminal output never has to leave your network if you don't want it to.
-Side-panel history survives restarts: reopening the panel restores the latest conversation.
+**Local-agent side panel** — the extension does not configure remote AI providers or offer an
+API-key chat mode. Start Claude Code / Codex with the `bastion-pilot mcp` server configured, open
+the side panel, then pick that agent conversation in the header. Messages are delivered through
+`get_shared_context` / `append_shared_context`; set `BASTION_PILOT_CONVERSATION_ID` (or
+`CODEX_THREAD_ID`) in the MCP process environment for a human-readable conversation identity.
+Shared context lives under `~/.bastion-pilot/`, and the selected agent uses the same terminal,
+approval and audit path as any other MCP client.
 
 ## Configuration
 
@@ -178,16 +157,16 @@ Side-panel history survives restarts: reopening the panel restores the latest co
 | `approval.requireUserApproval` | `true` | every command, keystroke and file operation needs an explicit panel approval |
 | `approval.confirmTimeoutMs`  | `120000`  | unanswered approvals are denied after this                             |
 | `approval.readonlyAllowlist` | `[]`      | regex list; in `readonly` mode matching commands are allowed           |
-| `providers[]`                | `[]`      | OpenAI-compatible providers for the built-in chat                      |
-| `activeProviderId`           | `null`    | provider used by the side panel                                        |
-| `agent.maxIterations`        | `30`      | loop cap for the built-in agent                                        |
-| `agent.systemPrompt`         | built-in  | replace the default safety-first prompt                                |
+| `providers[]`                | `[]`      | daemon built-in chat providers (not exposed by the extension)          |
+| `activeProviderId`           | `null`    | provider used by the daemon's built-in loop                            |
+| `agent.maxIterations`        | `30`      | loop cap for the daemon built-in agent                                 |
+| `agent.systemPrompt`         | built-in  | replace the daemon's default safety-first prompt                       |
 | `output.maxInlineChars`      | `6000`    | larger outputs are truncated + saved to a file                         |
 | `transcripts.enabled`        | `true`    | per-session terminal transcripts under `~/.bastion-pilot/transcripts/` |
 
-Extension-side settings (options page): daemon URL, pairing token, AI providers, granted origins
-and the site profile per origin (`generic-xterm` / `jumpserver` / `anheng-mingyu`). AI provider settings are written
-by the authenticated local daemon and are not stored in browser sync storage.
+Extension-side settings (options page): daemon URL, pairing token, granted origins and the site
+profile per origin (`generic-xterm` / `jumpserver` / `anheng-mingyu`). The extension stores no
+remote AI provider credentials.
 
 ## Troubleshooting
 

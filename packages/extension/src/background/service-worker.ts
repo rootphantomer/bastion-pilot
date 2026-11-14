@@ -25,7 +25,6 @@ interface Settings {
   token: string;
   sites: SiteEntry[];
   defaultWaitMs?: number;
-  chatMode?: 'provider' | 'agent';
 }
 
 interface PendingApproval {
@@ -305,15 +304,8 @@ async function onDaemonMessage(msg: DaemonMessage) {
       agents = msg.payload.agents;
       broadcastState();
       return;
-    case 'chat_created':
-    case 'chat_replay':
-    case 'chat_delta':
-    case 'chat_tool_call':
-    case 'chat_tool_result':
-    case 'chat_done':
     case 'shared_context_event':
     case 'shared_context_replay':
-    case 'providers_list':
     case 'error':
       forwardToPanels({ kind: 'chat-event', message: msg });
       return;
@@ -428,9 +420,6 @@ chrome.runtime.onConnect.addListener((port) => {
     port.onMessage.addListener(
       (msg: {
         kind?: string;
-        providerId?: string;
-        sessionId?: string;
-        fresh?: boolean;
         chatId?: string;
         text?: string;
         targetAgentId?: string;
@@ -439,20 +428,6 @@ chrome.runtime.onConnect.addListener((port) => {
         approved?: boolean;
       }) => {
         switch (msg.kind) {
-          case 'chat-new':
-            daemon.send('chat_new', {
-              providerId: msg.providerId,
-              sessionId: msg.sessionId,
-              fresh: msg.fresh === true,
-            });
-            break;
-          case 'chat-message':
-            if (msg.chatId && msg.text)
-              daemon.send('chat_message', { chatId: msg.chatId, text: msg.text });
-            break;
-          case 'chat-abort':
-            if (msg.chatId) daemon.send('chat_abort', { chatId: msg.chatId });
-            break;
           case 'agent-message':
             if (msg.text)
               daemon.send('shared_context_append', {

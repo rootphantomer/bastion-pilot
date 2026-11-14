@@ -38,7 +38,6 @@ const sendBtn = document.getElementById('send-btn') as HTMLButtonElement;
 const abortBtn = document.getElementById('abort-btn') as HTMLButtonElement;
 const statusDot = document.getElementById('status-dot')!;
 const sessionSelect = document.getElementById('session-select') as HTMLSelectElement;
-const modeSelect = document.getElementById('chat-mode') as HTMLSelectElement;
 const modeStatus = document.getElementById('mode-status')!;
 const agentSelect = document.getElementById('agent-select') as HTMLSelectElement;
 const newChatBtn = document.getElementById('new-chat') as HTMLButtonElement;
@@ -46,22 +45,13 @@ const approvalsEl = document.getElementById('approvals')!;
 const emptyHint = document.querySelector('.empty-hint');
 const activityEl = document.getElementById('activity')!;
 const activityText = document.getElementById('activity-text')!;
-const queueCount = document.getElementById('queue-count')!;
 
-let chatId: string | null = null;
-const outbox: string[] = [];
-let chatCreateRequested = false;
 let busy = false;
-let stopping = false;
-let chatMode: 'provider' | 'agent' = 'provider';
 let agentConnected = false;
 let selectedAgentId = '';
-let selectedSessionId = '';
 let sharedReplayRendered = false;
 let pendingAgentRequestId: string | null = null;
 let agentRequestTimer: number | null = null;
-let currentAssistant: HTMLDivElement | null = null;
-const toolCards = new Map<string, HTMLElement>();
 
 function postToBackground(message: unknown) {
   try {
@@ -80,18 +70,12 @@ function setBusy(value: boolean) {
   busy = value;
   abortBtn.classList.toggle('hidden', !value);
   activityEl.classList.toggle('active', value);
-  if (!value && outbox.length === 0) setActivity('就绪 · 等待你的指令', false);
-  renderQueueCount();
+  if (!value) setActivity('就绪 · 等待你的指令', false);
 }
 
 function setActivity(text: string, active = busy) {
   activityText.textContent = text;
   activityEl.classList.toggle('active', active);
-}
-
-function renderQueueCount() {
-  queueCount.classList.toggle('hidden', outbox.length === 0);
-  queueCount.textContent = outbox.length > 0 ? `队列 ${outbox.length}` : '';
 }
 
 function removeEmptyHint() {
@@ -106,21 +90,6 @@ function addUserMessage(text: string) {
   scrollBottom();
 }
 
-function ensureAssistantBubble(): HTMLDivElement {
-  if (!currentAssistant) {
-    currentAssistant = document.createElement('div');
-    currentAssistant.className = 'msg assistant';
-    transcript.appendChild(currentAssistant);
-  }
-  return currentAssistant;
-}
-
-function finalizeAssistant() {
-  if (currentAssistant && !currentAssistant.textContent?.trim()) currentAssistant.remove();
-  currentAssistant = null;
-  scrollBottom();
-}
-
 function addErrorMessage(text: string) {
   const div = document.createElement('div');
   div.className = 'msg error';
@@ -129,42 +98,11 @@ function addErrorMessage(text: string) {
   scrollBottom();
 }
 
-function addReplayLine(text: string) {
-  const div = document.createElement('div');
-  div.className = 'msg replay';
-  div.textContent = text;
-  transcript.appendChild(div);
-}
-
 function addSharedAgentMessage(role: string, text: string) {
   const div = document.createElement('div');
   div.className = role === 'user' ? 'msg user shared-agent' : 'msg assistant shared-agent';
   div.textContent = role === 'user' ? text : `本地 Agent · ${text}`;
   transcript.appendChild(div);
-  scrollBottom();
-}
-
-function paramsSummary(params: Record<string, unknown>): string {
-  const json = JSON.stringify(params, null, 1);
-  return json.length > 240 ? json.slice(0, 240) + '…' : json;
-}
-
-function addToolCard(callId: string, tool: string, params: Record<string, unknown>) {
-  const card = document.createElement('div');
-  card.className = 'tool-card running';
-  card.innerHTML = `
-    <div class="tool-head">
-      <span class="tool-name"></span>
-      <span class="tool-state">…</span>
-    </div>
-    <div class="tool-body"></div>`;
-  (card.querySelector('.tool-name') as HTMLElement).textContent = toolLabel(tool);
-  (card.querySelector('.tool-body') as HTMLElement).textContent = paramsSummary(params);
-  (card.querySelector('.tool-head') as HTMLElement).addEventListener('click', () => {
-    card.classList.toggle('open');
-  });
-  transcript.appendChild(card);
-  toolCards.set(callId, card);
   scrollBottom();
 }
 
@@ -182,18 +120,6 @@ function toolLabel(tool: string): string {
     append_shared_context: '写入共享会话',
   };
   return labels[tool] ?? tool;
-}
-
-function finishToolCard(callId: string, ok: boolean, summary: string) {
-  const card = toolCards.get(callId);
-  if (!card) return;
-  card.classList.remove('running');
-  card.classList.add(ok ? 'ok' : 'fail');
-  (card.querySelector('.tool-state') as HTMLElement).textContent = ok ? '✓' : '✗';
-  const body = card.querySelector('.tool-body') as HTMLElement;
-  body.textContent = `${body.textContent ?? ''}\n→ ${summary}`;
-  toolCards.delete(callId);
-  scrollBottom();
 }
 
 function renderApprovals(approvals: StateMessage['approvals']) {
@@ -234,13 +160,10 @@ function renderState(state: StateMessage) {
   agentConnected = state.agentConnected;
   statusDot.className = `dot ${state.connected ? 'dot-on' : 'dot-off'}`;
   statusDot.title = state.connected ? '本地服务已连接' : '本地服务未连接';
-  modeStatus.textContent =
-    chatMode === 'agent'
-      ? agentConnected
-        ? `Agent 已连接${state.agentNames.length ? ` · ${state.agentNames.join('、')}` : ''}`
-        : '等待本地 Agent（MCP）'
-      : '使用 API Key';
-  modeStatus.className = `mode-status ${chatMode === 'agent' && agentConnected ? 'ok' : ''}`;
+  modeStatus.textContent = agentConnected
+    ? `Agent 已连接${state.agentNames.length ? ` · ${state.agentNames.join('、')}` : ''}`
+    : '等待本地 Agent（MCP）';
+  modeStatus.className = `mode-status ${agentConnected ? 'ok' : ''}`;
   agentSelect.textContent = '';
   const placeholder = document.createElement('option');
   placeholder.value = '';
@@ -262,7 +185,6 @@ function renderState(state: StateMessage) {
   if (state.agents.some((agent) => agent.agentId === selectedAgentId)) {
     agentSelect.value = selectedAgentId;
   }
-  agentSelect.classList.toggle('hidden', chatMode !== 'agent');
   agentSelect.disabled = state.agents.length === 0;
 
   sessionSelect.textContent = '';
@@ -280,10 +202,6 @@ function renderState(state: StateMessage) {
       option.textContent = `${session.title} (${session.profileId})`;
       sessionSelect.appendChild(option);
     }
-    if (!state.sessions.some((session) => session.sessionId === selectedSessionId)) {
-      selectedSessionId = state.sessions[0]!.sessionId;
-    }
-    sessionSelect.value = selectedSessionId;
   }
   renderApprovals(state.approvals);
   if (!busy)
@@ -291,47 +209,23 @@ function renderState(state: StateMessage) {
   if (state.connected) removeEmptyHint();
   const hookHint = document.getElementById('hook-hint');
   if (hookHint) {
-    hookHint.classList.toggle(
-      'hidden',
-      !(state.connected && state.sessions.length === 0 && !chatId)
-    );
+    hookHint.classList.toggle('hidden', !(state.connected && state.sessions.length === 0));
   }
 }
 
 function handleChatEvent(message: ChatEventMessage['message']) {
   const payload = message.payload;
-  if (payload.chatId && chatId && payload.chatId !== chatId) return;
-  if (stopping && ['chat_delta', 'chat_tool_call', 'chat_tool_result'].includes(message.type))
-    return;
   switch (message.type) {
-    case 'chat_created':
-      chatId = String(payload.chatId);
-      chatCreateRequested = false;
-      if (outbox.length > 0) dispatchNext();
-      break;
-    case 'chat_replay': {
-      // Restored history from a previous session — render compactly.
-      const messages = (payload.messages ?? []) as Array<{ role: string; content: string }>;
-      for (const m of messages) {
-        if (m.role === 'user') {
-          addUserMessage(m.content);
-        } else if (m.role === 'assistant') {
-          if (m.content) {
-            const bubble = ensureAssistantBubble();
-            bubble.textContent += m.content;
-            finalizeAssistant();
-          }
-        } else if (m.role === 'tool' && m.content.trim()) {
-          addReplayLine(m.content);
-        }
-      }
-      finalizeAssistant();
-      scrollBottom();
-      break;
-    }
     case 'shared_context_event': {
       const entry = payload.entry as
-        { source?: string; role?: string; content?: string; targetAgentId?: string; requestId?: string } | undefined;
+        | {
+            source?: string;
+            role?: string;
+            content?: string;
+            targetAgentId?: string;
+            requestId?: string;
+          }
+        | undefined;
       if (
         entry?.source === 'mcp' &&
         entry.content &&
@@ -339,7 +233,6 @@ function handleChatEvent(message: ChatEventMessage['message']) {
       ) {
         addSharedAgentMessage(entry.role ?? 'note', entry.content);
         if (
-          chatMode === 'agent' &&
           entry.role === 'assistant' &&
           pendingAgentRequestId &&
           entry.requestId === pendingAgentRequestId
@@ -373,49 +266,10 @@ function handleChatEvent(message: ChatEventMessage['message']) {
       }
       break;
     }
-    case 'chat_delta':
-      setActivity('正在生成回答…', true);
-      if (typeof payload.text === 'string' && payload.text.length > 0) {
-        const bubble = ensureAssistantBubble();
-        bubble.textContent += payload.text;
-        scrollBottom();
-      }
-      break;
-    case 'chat_tool_call':
-      finalizeAssistant();
-      setActivity(`正在执行：${toolLabel(String(payload.tool))}`, true);
-      addToolCard(
-        String(payload.callId),
-        String(payload.tool),
-        (payload.params ?? {}) as Record<string, unknown>
-      );
-      break;
-    case 'chat_tool_result':
-      setActivity(
-        payload.ok === true ? '工具执行完成，继续思考…' : '工具执行失败，正在处理…',
-        true
-      );
-      finishToolCard(String(payload.callId), payload.ok === true, String(payload.summary ?? ''));
-      break;
-    case 'chat_done':
-      stopping = false;
-      abortBtn.disabled = false;
-      if (payload.error) addErrorMessage(String(payload.error));
-      finalizeAssistant();
-      if (outbox.length > 0) {
-        dispatchNext();
-      } else {
-        setBusy(false);
-        if (payload.stopReason === 'aborted') setActivity('已停止 · 可继续发送消息', false);
-      }
-      break;
     case 'error':
-      stopping = false;
       abortBtn.disabled = false;
       addErrorMessage(String((payload as { message?: string }).message ?? '未知错误'));
-      finalizeAssistant();
-      if (outbox.length > 0) dispatchNext();
-      else setBusy(false);
+      setBusy(false);
       break;
     default:
       break;
@@ -432,16 +286,6 @@ port.onMessage.addListener((msg: PortMessage) => {
 });
 
 postToBackground({ kind: 'get-state' });
-
-function dispatchNext() {
-  if (!chatId || outbox.length === 0) return;
-  const text = outbox.shift()!;
-  renderQueueCount();
-  setBusy(true);
-  setActivity('正在连接 AI…', true);
-  ensureAssistantBubble();
-  postToBackground({ kind: 'chat-message', chatId, text });
-}
 
 function sendToAgent(text: string) {
   if (!agentConnected) {
@@ -462,7 +306,9 @@ function sendToAgent(text: string) {
     pendingAgentRequestId = null;
     setBusy(false);
     setActivity('本地 Agent 响应超时 · 请确认 Agent 已读取共享上下文', false);
-    addErrorMessage('本地 Agent 暂未回写响应。请在 Agent 对话中调用 get_shared_context 后，使用 append_shared_context 回答。');
+    addErrorMessage(
+      '本地 Agent 暂未回写响应。请在 Agent 对话中调用 get_shared_context 后，使用 append_shared_context 回答。'
+    );
   }, 120_000);
   setBusy(true);
   setActivity('已发送至选中的 Agent 对话 · 等待回写…', true);
@@ -475,25 +321,7 @@ function send() {
   removeEmptyHint();
   addUserMessage(text);
   input.value = '';
-  if (chatMode === 'agent') {
-    sendToAgent(text);
-    return;
-  }
-  outbox.push(text);
-  renderQueueCount();
-  if (chatId) {
-    if (!busy) dispatchNext();
-    else setActivity('正在处理上一条消息 · 已加入队列', true);
-  } else {
-    setActivity('正在建立会话…', true);
-    if (!chatCreateRequested) {
-      chatCreateRequested = true;
-      postToBackground({
-        kind: 'chat-new',
-        sessionId: selectedSessionId || undefined,
-      });
-    }
-  }
+  sendToAgent(text);
 }
 
 function resetConversation() {
@@ -501,41 +329,32 @@ function resetConversation() {
     addErrorMessage('当前任务仍在执行，请先停止后再新建对话。');
     return;
   }
-  chatId = null;
-  chatCreateRequested = false;
   sharedReplayRendered = false;
-  currentAssistant = null;
-  toolCards.clear();
+  pendingAgentRequestId = null;
+  if (agentRequestTimer !== null) {
+    window.clearTimeout(agentRequestTimer);
+    agentRequestTimer = null;
+  }
   transcript.textContent = '';
   const hint = document.createElement('div');
   hint.className = 'empty-hint';
-  hint.innerHTML = '<p class="welcome-title">新对话已准备好</p><p>描述你的目标，执行前会显示审批卡片。</p>';
+  hint.innerHTML =
+    '<p class="welcome-title">新对话已准备好</p><p>描述你的目标，执行前会显示审批卡片。</p>';
   transcript.appendChild(hint);
-  postToBackground({
-    kind: 'chat-new',
-    sessionId: selectedSessionId || undefined,
-    fresh: true,
-  });
-  setActivity('正在建立新会话…', true);
+  setActivity('新对话已准备好 · 等待本地 Agent', false);
 }
 
 sendBtn.addEventListener('click', send);
 newChatBtn.addEventListener('click', resetConversation);
 abortBtn.addEventListener('click', () => {
-  if (stopping) return;
-  stopping = true;
   abortBtn.disabled = true;
-  outbox.splice(0, outbox.length);
-  renderQueueCount();
-  finalizeAssistant();
-  if (chatMode === 'provider' && chatId) postToBackground({ kind: 'chat-abort', chatId });
+  if (agentRequestTimer !== null) {
+    window.clearTimeout(agentRequestTimer);
+    agentRequestTimer = null;
+  }
+  pendingAgentRequestId = null;
   setBusy(false);
-  setActivity(
-    chatMode === 'agent'
-      ? '已停止等待 · 本地 Agent 仍可能继续执行'
-      : '正在停止生成… 已发送的终端命令不会自动撤销',
-    false
-  );
+  setActivity('已停止等待 · 本地 Agent 仍可能继续执行', false);
 });
 input.addEventListener('keydown', (ev) => {
   if (ev.key === 'Enter' && !ev.shiftKey && !ev.isComposing) {
@@ -552,46 +371,14 @@ document.getElementById('empty-options-link')?.addEventListener('click', (ev) =>
   chrome.runtime.openOptionsPage();
 });
 
-modeSelect.addEventListener('change', () => {
-  chatMode = modeSelect.value === 'agent' ? 'agent' : 'provider';
-  void chrome.storage.sync.set({ chatMode });
-  stopping = false;
-  if (busy) setBusy(false);
-  setActivity(
-    chatMode === 'agent'
-      ? agentConnected
-        ? '本地 Agent 已连接 · 可以发送'
-        : '等待本地 Agent · 请启动 Claude Code / Codex'
-      : 'API Key 对话 · 等待你的指令',
-    false
-  );
-  modeStatus.textContent = chatMode === 'agent' ? '等待本地 Agent（MCP）' : '使用 API Key';
-  agentSelect.classList.toggle('hidden', chatMode !== 'agent');
-});
-
 agentSelect.addEventListener('change', () => {
   if (agentRequestTimer !== null) window.clearTimeout(agentRequestTimer);
   agentRequestTimer = null;
   pendingAgentRequestId = null;
-  if (busy && chatMode === 'agent') setBusy(false);
+  if (busy) setBusy(false);
   selectedAgentId = agentSelect.value;
   sharedReplayRendered = false;
   if (selectedAgentId) {
     postToBackground({ kind: 'get-shared-context', targetAgentId: selectedAgentId, limit: 50 });
   }
-});
-
-sessionSelect.addEventListener('change', () => {
-  selectedSessionId = sessionSelect.value;
-  if (chatId && !busy) {
-    addReplayLine('已切换目标终端。新建对话后生效。');
-  }
-});
-
-void chrome.storage.sync.get('chatMode').then((stored) => {
-  const mode = (stored as { chatMode?: string }).chatMode;
-  chatMode = mode === 'agent' ? 'agent' : 'provider';
-  modeSelect.value = chatMode;
-  modeStatus.textContent = chatMode === 'agent' ? '等待本地 Agent（MCP）' : '使用 API Key';
-  agentSelect.classList.toggle('hidden', chatMode !== 'agent');
 });
