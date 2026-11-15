@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>齐治运维堡垒机 - 运维会话</title>
+<link rel="stylesheet" href="assets/mock.css">
+<style>#term{height:100%;border:1px solid #1d4038;border-radius:4px}</style>
+</head>
+<body>
+<!-- BastionPilot mock · profile: qizhi · terminalDomHints: .xterm, .xterm-screen, #term, .terminal-box -->
+<section class="mock-login" id="login" style="background:linear-gradient(135deg,#0e2b26,#124a3e)">
+  <form onsubmit="return doLogin(event)">
+    <h2>齐治运维堡垒机</h2>
+    <div class="sub">qizhi profile — 齐治 RyderAIL / 运维审计系统风格</div>
+    <label>用户名</label><input id="lu" value="admin">
+    <label>密码</label><input id="lp" type="password" value="mock">
+    <button style="background:#0f8a5f">登 录</button>
+    <div class="hint">这是 BastionPilot 的本地模拟页面（不需要真实堡垒机）。任意凭据可登录，
+    登录后会出现 xterm.js 模拟终端，用于验证扩展的会话识别与终端交互。</div>
+  </form>
+</section>
+
+<div class="mock-layout" id="term-page" style="display:none">
+
+  <div class="mock-sidebar" style="background:#0c241f">
+    <h1>齐治运维堡垒机</h1>
+    <div style="font-size:11px;color:#4e7a6e;margin:6px 0">主机列表</div>
+    <div class="asset active">▸ web-01 · 10.0.0.11 · SSH</div>
+    <div class="asset">▸ db-01 · 10.0.0.12 · MySQL</div>
+    <div style="font-size:11px;color:#4e7a6e;margin:14px 0 6px">当前会话</div>
+    <div class="asset active">字符终端 · web-01</div>
+  </div>
+  <div class="mock-main">
+    <div class="mock-topbar" style="background:#0c241f;color:#d1fae5;border-bottom:1px solid #1d4038"><b style='color:#34d399'>齐治运维堡垒机</b> — 运维会话 · 用户 admin · 资产 web-01（字符终端，操作将被录像审计）</div>
+    <div class="mock-terminal-wrap">
+      <div id="term" class="terminal-box"></div>
+      <div class="mock-badge">profile: qizhi</div>
+    </div>
+  </div>
+</div>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/css/xterm.min.css">
+<script src="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/lib/xterm.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@xterm/addon-fit@0.10.0/lib/addon-fit.min.js"></script>
+<script>
+window.MOCK_CFG = { ws: true,
+  el: '#term',
+  prompt: 'web-01:~# ',
+  hostname: 'web-01',
+  banner: 'Welcome to Qizhi RyderAIL Bastion (mock). You are now on web-01.',
+  welcomeNote: '所有操作将被审计与录像。'
+};
+function doLogin(e) {
+  e.preventDefault();
+  document.getElementById('login').style.display = 'none';
+  document.getElementById('term-page').style.display = 'flex';
+  setTimeout(() => { window.dispatchEvent(new Event('resize')); }, 50);
+  return false;
+}
+</script>
+<script src="assets/mock-terminal.js"></script>
+</body>
+</html>

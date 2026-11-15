@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>mingyu 安全运维堡垒机 V2.0</title>
+<link rel="stylesheet" href="assets/mock.css">
+<style>
+  :root {
+    --my-navy: #08192c; --my-navy-2: #0b2038; --my-line: #16344f;
+    --my-text: #c7daef; --my-dim: #6d8bab; --my-accent: #d32f2f; --my-ok: #34d399;
+  }
+  body.my-app { background: var(--my-navy); color: var(--my-text); }
+
+  /* ---------- 登录 ---------- */
+  .my-login { background:
+      radial-gradient(1200px 600px at 20% 0%, #123a63 0%, transparent 60%),
+      linear-gradient(135deg, #061426, #0d2a4a 70%, #0a1d33);
+    flex-direction: column; gap: 22px; }
+  .my-login-brand { color: #9fc2e6; font-size: 13px; letter-spacing: 2px; }
+  .my-login-brand b { color: #fff; }
+  .my-login form { background: #fff; border-top: 3px solid var(--my-accent); }
+  .my-login h2 { color: #0d2a4a; }
+  .my-login button { background: var(--my-accent); }
+  .my-captcha-row { display: flex; gap: 8px; }
+  .my-captcha-row input { flex: 1; }
+  .my-captcha {
+    width: 92px; display: flex; align-items: center; justify-content: center;
+    background: #eef3f8; border: 1px solid #ccc; border-radius: 6px;
+    font-family: Georgia, serif; font-style: italic; font-weight: 700; letter-spacing: 3px;
+    color: #0d2a4a; user-select: none;
+  }
+  .my-remember { display: flex !important; align-items: center; gap: 6px; margin-top: 12px !important; }
+  .my-remember input { width: auto; }
+
+  /* ---------- 应用框架 ---------- */
+  .my-shell { display: flex; flex-direction: column; height: 100vh; }
+  .my-topnav {
+    height: 52px; flex-shrink: 0; display: flex; align-items: center; gap: 26px;
+    padding: 0 18px; background: linear-gradient(90deg, #0a1f38, #0c2743);
+    border-bottom: 1px solid var(--my-line);
+  }
+  .my-logo { display: flex; align-items: center; gap: 10px; font-size: 15px; color: #eaf3fc; white-space: nowrap; }
+  .my-logo small { font-size: 11px; color: var(--my-dim); font-weight: 400; }
+  .my-logo-mark {
+    width: 26px; height: 26px; border-radius: 4px; background: var(--my-accent);
+    display: inline-flex; align-items: center; justify-content: center; font-weight: 700; font-size: 15px;
+  }
+  .my-topnav nav { display: flex; gap: 18px; font-size: 13px; color: #8fabc9; }
+  .my-topnav nav span { padding: 4px 2px; cursor: default; }
+  .my-topnav nav span.active { color: #fff; border-bottom: 2px solid var(--my-accent); }
+  .my-user { margin-left: auto; font-size: 12px; color: #8fabc9; white-space: nowrap; }
+  .my-sep { color: #2c4a6b; margin: 0 6px; }
+
+  .my-body { flex: 1; display: flex; min-height: 0; }
+
+  /* ---------- 资源树 ---------- */
+  .my-tree {
+    width: 232px; flex-shrink: 0; overflow: auto; padding: 12px 10px;
+    background: #07131f; border-right: 1px solid var(--my-line); font-size: 13px;
+  }
+  .my-search {
+    width: 100%; padding: 7px 9px; margin-bottom: 12px; font-size: 12px;
+    color: var(--my-text); background: #0c1e30; border: 1px solid var(--my-line); border-radius: 4px;
+  }
+  .my-search::placeholder { color: #46617d; }
+  .my-group {
+    display: flex; align-items: center; justify-content: space-between;
+    margin: 14px 4px 6px; font-size: 11px; color: #5d7c9c; letter-spacing: 1px;
+  }
+  .my-count { color: #7f9bb8; }
+  .my-asset {
+    display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 5px;
+    color: #a9c2da; cursor: default; white-space: nowrap;
+  }
+  .my-asset .my-name { overflow: hidden; text-overflow: ellipsis; }
+  .my-asset em { margin-left: auto; font-style: normal; font-size: 11px; color: #4f6b87; flex-shrink: 0; }
+  .my-asset.active { background: #10293f; color: #fff; box-shadow: inset 2px 0 0 var(--my-accent); }
+  .my-dot {
+    width: 7px; height: 7px; border-radius: 50%; background: #2f4b67; flex-shrink: 0;
+  }
+  .my-dot.live { background: var(--my-ok); box-shadow: 0 0 6px rgba(52, 211, 153, .8); }
+  .my-dot.warn { background: #f6c453; }
+  .my-dot.dead { background: #e05252; }
+
+  /* ---------- 终端区 ---------- */
+  .my-main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+  .my-tabbar {
+    flex-shrink: 0; display: flex; gap: 2px; padding: 6px 10px 0;
+    background: #07131f; border-bottom: 1px solid var(--my-line);
+  }
+  .my-tab {
+    display: inline-flex; align-items: center; gap: 8px; padding: 7px 14px;
+    font-size: 12px; color: #8fabc9; background: #0b2038; border: 1px solid var(--my-line);
+    border-bottom: 0; border-radius: 5px 5px 0 0;
+  }
+  .my-tab.active { background: #0e2740; color: #fff; }
+  .my-tab b { color: #5d7c9c; font-weight: 400; }
+
+  .my-toolbar {
+    flex-shrink: 0; display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    padding: 7px 12px; background: #0a1c2e; border-bottom: 1px solid var(--my-line); font-size: 12px;
+  }
+  .my-session b { color: #ffd9a0; font-weight: 500; }
+  .my-field { display: inline-flex; align-items: center; gap: 6px; color: #8fabc9; }
+  .my-field select {
+    padding: 3px 6px; font-size: 12px; color: var(--my-text);
+    background: #0c2438; border: 1px solid var(--my-line); border-radius: 4px;
+  }
+  .my-field input[type="checkbox"] { accent-color: var(--my-accent); }
+  .my-spacer { flex: 1; }
+  .my-toolbar button {
+    padding: 5px 12px; font-size: 12px; color: #cfe1f4; cursor: pointer;
+    background: #10293f; border: 1px solid var(--my-line); border-radius: 4px;
+  }
+  .my-toolbar button:hover { background: #173954; }
+  .my-toolbar button.danger { color: #ffc9c9; border-color: #5a2626; background: #3a1414; }
+
+  .my-term-wrap {
+    position: relative; flex: 1; min-height: 0; padding: 8px; background: #0b1520;
+  }
+  .my-term-wrap.my-fullscreen { position: fixed; inset: 0; z-index: 60; padding: 12px; }
+  #mock-term-host { position: absolute; inset: 8px; }
+  #mock-term-host .xterm-viewport { scrollbar-width: thin; scrollbar-color: #1d3852 transparent; }
+  #mock-term-host .xterm-viewport::-webkit-scrollbar { width: 8px; }
+  #mock-term-host .xterm-viewport::-webkit-scrollbar-thumb { background: #1d3852; border-radius: 4px; }
+  #mock-term-host .xterm-viewport::-webkit-scrollbar-track { background: transparent; }
+  .my-term-wrap.my-fullscreen #mock-term-host { inset: 12px; }
+
+  .my-watermark { position: absolute; inset: 0; overflow: hidden; pointer-events: none; opacity: .06; }
+  .my-watermark span {
+    position: absolute; transform: rotate(-24deg); white-space: nowrap;
+    font-size: 13px; color: #a9cdf0; font-family: -apple-system, "PingFang SC", sans-serif;
+  }
+
+  .my-conn-overlay {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    background: rgba(4, 12, 20, .72); font-size: 13px; text-align: center; z-index: 20;
+  }
+  .my-conn-overlay[hidden] { display: none; }
+  .my-conn-overlay b { display: block; font-size: 15px; color: #ffd0d0; margin-bottom: 6px; }
+  .my-conn-overlay p { margin: 0; color: var(--my-dim); }
+
+  .my-statusbar {
+    flex-shrink: 0; height: 28px; display: flex; align-items: center; gap: 8px;
+    padding: 0 12px; font-size: 11px; color: #7f9bb8;
+    background: #07131f; border-top: 1px solid var(--my-line);
+  }
+  .my-statusbar .mock-badge {
+    position: static; padding: 2px 8px; margin-left: 10px;
+    color: #6f8dab; background: #0b2038; border: 1px solid var(--my-line);
+  }
+  .my-statusbar .rec { color: #ff8a8a; }
+  .my-statusbar .rec i {
+    display: inline-block; width: 7px; height: 7px; margin-right: 4px; border-radius: 50%;
+    background: #e05252; animation: myBlink 1.6s infinite;
+  }
+  @keyframes myBlink { 0%, 100% { opacity: 1; } 50% { opacity: .25; } }
+</style>
+</head>
+<body class="my-app">
+<!-- BastionPilot mock · profile: anheng-mingyu · terminalDomHints: .xterm, .xterm-screen, canvas -->
+<section class="mock-login my-login" id="login">
+  <div class="my-login-brand"><b>mingyu</b> · 安全运维堡垒机 V2.0</div>
+  <form onsubmit="return doLogin(event)">
+    <h2>运维审计系统</h2>
+    <div class="sub">Anheng Mingyu V2.0 · 本地模拟页面（mock）</div>
+    <label>用户名</label><input id="lu" value="admin">
+    <label>密码</label><input id="lp" type="password" value="mock">
+    <label>验证码</label>
+    <div class="my-captcha-row"><input id="lc" value="8F3K"><span class="my-captcha">8F3K</span></div>
+    <label class="my-remember"><input type="checkbox" checked> 记住用户名</label>
+    <button type="button" onclick="doLogin(event)">登 录</button>
+    <div class="hint">任意凭据可登录。本页模拟 mingyu V2.0 的 Web 终端：Guacamole 指令流
+    （<code>tes</code> + base64）、GB18030/UTF-8 自动识别、分片下发、CR 换行，
+    用于验证 BastionPilot 的 anheng-mingyu profile。登录后可在工具栏切换编码与分片。</div>
+  </form>
+</section>
+
+<div class="my-shell" id="term-page" style="display:none">
+  <header class="my-topnav">
+    <div class="my-logo"><span class="my-logo-mark">M</span> mingyu <small>安全运维审计系统 V2.0</small></div>
+    <nav><span class="active">运维</span><span>资源</span><span>审计</span><span>告警</span><span>系统</span></nav>
+    <div class="my-user">admin <span class="my-sep">|</span> 运维管理员 <span class="my-sep">|</span> 退出</div>
+  </header>
+
+  <div class="my-body">
+    <aside class="my-tree">
+      <input class="my-search" placeholder="搜索主机 / IP / 账号">
+      <div class="my-group">主机资源 <span class="my-count">2</span></div>
+      <div class="my-asset active"><span class="my-dot live"></span> <span class="my-name">web-01</span> <em>10.0.0.11</em></div>
+      <div class="my-asset"><span class="my-dot live"></span> <span class="my-name">db-01</span> <em>10.0.0.12</em></div>
+      <div class="my-group">运维会话 <span class="my-count">1</span></div>
+      <div class="my-asset active"><span class="my-dot live"></span> <span class="my-name">SSH · web-01</span> <em>MY-2025-1006-77</em></div>
+    </aside>
+
+    <main class="my-main">
+      <div class="my-tabbar"><span class="my-tab active">SSH · web-01 <b>×</b></span></div>
+
+      <div class="my-toolbar">
+        <span class="my-session">会话 <b>MY-2025-1006-77</b></span>
+        <label class="my-field">编码
+          <select id="enc">
+            <option value="gb18030">GB18030</option>
+            <option value="utf-8">UTF-8</option>
+          </select>
+        </label>
+        <label class="my-field"><input type="checkbox" id="frag"> 分片下发</label>
+        <span class="my-spacer"></span>
+        <button type="button" id="btn-copy">复制</button>
+        <button type="button" id="btn-paste">粘贴</button>
+        <button type="button" id="btn-reconnect">重连</button>
+        <button type="button" id="btn-disconnect" class="danger">断开</button>
+        <button type="button" id="btn-full">全屏</button>
+      </div>
+
+      <div class="my-term-wrap" id="term-wrap">
+        <div id="mock-term-host"></div>
+        <div class="my-watermark" id="watermark"></div>
+        <div class="my-conn-overlay" id="conn-overlay" hidden>
+          <div><b>会话已断开</b><p>点击工具栏「重连」恢复，或切换编码重新建立会话。</p></div>
+        </div>
+      </div>
+
+      <div class="my-statusbar">
+        <span id="st-dot" class="my-dot"></span>
+        <span id="st-state">未连接</span>
+        <span class="my-sep">·</span>
+        <span id="st-enc">编码 GB18030</span>
+        <span class="my-sep">·</span>
+        <span class="rec"><i></i>会话录制中</span>
+        <span class="my-sep">·</span>
+        <span id="st-time">00:00:00</span>
+        <span class="my-spacer"></span>
+        <span class="mock-badge">profile: anheng-mingyu · 127.0.0.1:8906</span>
+      </div>
+    </main>
+  </div>
+</div>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/css/xterm.min.css">
+<script src="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/lib/xterm.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@xterm/addon-fit@0.10.0/lib/addon-fit.min.js"></script>
+<script>
+window.MOCK_CFG = {
+  ws: true,
+  deferMount: true,          // 登录后再挂载，避免容器 display:none 时 fit 失败
+  frame: 'guacamole',        // 与真实产品一致：tes 指令流
+  encoding: 'gb18030',       // 中文按 GB18030 下发，扩展的 textEncoding=auto 会识别
+  frag: false,               // 分片下发默认关闭，勾选后把指令拆多帧（覆盖 framer carry 路径）
+  el: '#mock-term-host',
+  prompt: 'web-01 ~ $ ',
+  hostname: 'web-01',
+  banner: 'mingyu 运维审计系统（mock）· SSH 字符会话已建立',
+  welcomeNote: '上次登录：2025-10-06 10:00:00 来源 10.0.0.100 · 本会话已开始录制 · 试试 echo "中文输出测试"',
+  theme: {
+    background: '#0b1520',
+    foreground: '#d6e4f5',
+    cursor: '#ff5c5c',
+    selectionBackground: '#20456b',
+    black: '#0b1520',
+    brightBlack: '#5b7290'
+  },
+  onStatus: renderStatus,
+  onReady: initControls
+};
+
+var STATUS_TEXT = {
+  idle: '未连接',
+  connecting: '连接中…',
+  open: '已连接',
+  closed: '已断开',
+  error: '连接失败'
+};
+
+var input = null;      // MockTerminal.mount 返回的控制器
+var startAt = Date.now();
+var mounted = false;
+
+/** 登录状态与编码选择存 sessionStorage：刷新页面（扩展重新 hook）后自动恢复。 */
+var SESSION_KEY = ['bastion', 'pilot', 'mock', 'session'].join('-');
+
+function readSession() {
+  try { return JSON.parse(sessionStorage.getItem(SESSION_KEY) || 'null'); } catch (e) { return null; }
+}
+
+function saveSession(patch) {
+  var next = readSession() || {};
+  for (var key in patch) {
+    if (Object.prototype.hasOwnProperty.call(patch, key)) next[key] = patch[key];
+  }
+  try { sessionStorage.setItem(SESSION_KEY, JSON.stringify(next)); } catch (e) { /* 隐私模式 */ }
+}
+
+var saved = readSession();
+if (saved) {
+  if (saved.encoding) window.MOCK_CFG.encoding = saved.encoding;
+  if (typeof saved.frag === 'boolean') window.MOCK_CFG.frag = saved.frag;
+}
+
+/**
+ * 扩展把终端 WebSocket 与「一个标签页一个会话」绑定，页面内重连会留下失效会话。
+ * 检测到 interceptor 在页面里时，改用刷新页面重新建立会话（真实产品也常见）。
+ */
+function needsPageReload() {
+  return window.__bastionPilotInterceptor === true;
+}
+
+function restart(patch) {
+  saveSession(patch || {});
+  if (needsPageReload()) {
+    location.reload();
+    return;
+  }
+  input.reconnect(patch);
+}
+
+function doLogin(e) {
+  if (e) e.preventDefault();
+  document.getElementById('login').style.display = 'none';
+  document.getElementById('term-page').style.display = 'flex';
+  paintWatermark();
+  saveSession({ loggedIn: true });
+  if (!mounted) {
+    mounted = true;
+    input = window.MockTerminal.mount(window.MOCK_CFG);
+  } else if (input) {
+    input.fit();
+  }
+  startAt = Date.now();
+  return false;
+}
+
+function paintWatermark() {
+  var box = document.getElementById('watermark');
+  var stamp = 'admin ' + new Date().toISOString().slice(0, 10).replace(/-/g, '-');
+  var html = '';
+  for (var row = 0; row < 9; row++) {
+    for (var col = 0; col < 5; col++) {
+      html += '<span style="top:' + (row * 11 + 3) + '%;left:' + (col * 21 + (row % 2 ? 7 : 0)) + '%">' + stamp + '</span>';
+    }
+  }
+  box.innerHTML = html;
+}
+
+function renderStatus(info) {
+  var dot = document.getElementById('st-dot');
+  var label = document.getElementById('st-state');
+  var overlay = document.getElementById('conn-overlay');
+  dot.className = 'my-dot ' + (info.state === 'open' ? 'live'
+    : info.state === 'connecting' ? 'warn'
+    : info.state === 'closed' || info.state === 'error' ? 'dead' : '');
+  label.textContent = STATUS_TEXT[info.state] || info.state;
+  label.title = info.message || '';
+  document.getElementById('st-enc').textContent =
+    '编码 ' + (info.encoding === 'gb18030' ? 'GB18030' : 'UTF-8') + (info.frag ? ' · 分片' : '');
+  overlay.hidden = info.state !== 'closed' && info.state !== 'error';
+  var enc = document.getElementById('enc');
+  var frag = document.getElementById('frag');
+  if (enc) enc.value = info.encoding;
+  if (frag) frag.checked = info.frag;
+}
+
+function initControls(api) {
+  var enc = document.getElementById('enc');
+  var frag = document.getElementById('frag');
+  var wrap = document.getElementById('term-wrap');
+
+  enc.value = api.getStatus().encoding;
+  frag.checked = api.getStatus().frag;
+
+  // 编码 / 分片变化会重建会话：未 hook 时原连接重连，已被扩展 hook 时刷新页面重新挂载
+  enc.addEventListener('change', function () { restart({ encoding: enc.value }); });
+  frag.addEventListener('change', function () { restart({ frag: frag.checked }); });
+
+  document.getElementById('btn-disconnect').addEventListener('click', function () {
+    api.disconnect();
+  });
+  document.getElementById('btn-reconnect').addEventListener('click', function () {
+    restart();
+  });
+  document.getElementById('btn-full').addEventListener('click', function () {
+    wrap.classList.toggle('my-fullscreen');
+    api.fit();
+  });
+  document.getElementById('btn-copy').addEventListener('click', function () {
+    api.term.selectAll();
+    var text = api.term.getSelection();
+    api.term.clearSelection();
+    if (!text) return;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).catch(function () { /* 需要用户授权 */ });
+    }
+  });
+  document.getElementById('btn-paste').addEventListener('click', function () {
+    if (!navigator.clipboard || !navigator.clipboard.readText) return;
+    navigator.clipboard.readText()
+      .then(function (text) { if (text) api.type(text); })
+      .catch(function () { /* 需要用户授权 */ });
+  });
+
+  setInterval(function () {
+    var elapsed = Math.floor((Date.now() - startAt) / 1000);
+    var hh = String(Math.floor(elapsed / 3600)).padStart(2, '0');
+    var mm = String(Math.floor((elapsed % 3600) / 60)).padStart(2, '0');
+    var ss = String(elapsed % 60).padStart(2, '0');
+    document.getElementById('st-time').textContent = hh + ':' + mm + ':' + ss;
+  }, 1000);
+}
+
+// 刷新页面（扩展重新 hook / 切换编码）后自动恢复到终端。
+// mock-terminal.js 在本脚本之后加载，等页面 load 后再恢复；再留一点时间给扩展的
+// content script 读完设置并开始监听 socket（它异步启动，过早建连会漏掉会话）。
+function restoreSession() {
+  var state = readSession();
+  if (!state || !state.loggedIn || !window.MockTerminal) return;
+  setTimeout(doLogin, 600);
+}
+if (document.readyState === 'complete') {
+  restoreSession();
+} else {
+  window.addEventListener('load', restoreSession);
+}
+</script>
+<script src="assets/mock-terminal.js"></script>
+</body>
+</html>

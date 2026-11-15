@@ -4,31 +4,31 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project adheres to
 [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [0.2.2-no-remote-ai] - 2026-11-15
 
-### Added
+无远程 AI 服务商系列的首个版本，基于上游 0.2.2 重建。扩展内没有 AI 服务商配置、API Key
+或侧边栏聊天输入；对话请使用 Codex / Claude Code 等 MCP 客户端，侧边栏只负责审批与只读共享上下文。
 
-- Extension settings now manage OpenAI-compatible providers (URL, API key, model, streaming,
-  temperature and token limit) through the authenticated local daemon.
-- Add an API-key provider flow with URL/model discovery and a side-panel picker for connected local-agent conversations.
-- MCP connections advertise an agent/conversation identity, allowing panel messages to be routed to
-  one Codex or Claude Code process instead of broadcasting to every local agent.
-- Provider settings are validated, persisted to `~/.bastion-pilot/config.json`, and covered by an
-  end-to-end daemon test.
+### 新增
 
-### Fixed
+- 支持 Mingyu V2.0 堡垒机（`anheng-mingyu` profile，含 GB18030 载荷识别）。
+- 隐藏哨兵（扩展设置中的“命令完成标记不脏屏”）：隐藏哨兵自身回显并通过 APC 回传退出码，
+  保持终端画面干净；默认关闭，可见 `echo` 哨兵仍为后备。
+- 侧边栏底部「审批历史 · 当前终端」：显示已批准 / 已拒绝 / 已超时的审批请求，历史由本地 daemon 维护。
+- `mocks/`：覆盖 6 个内置 profile 的本地模拟堡垒机页面，以及协议自检脚本 `mocks/selftest.mjs`。
+- `AGENTS.md`：面向 AI Agent 的 MCP 配置与操作指南。
 
-- Treat prior messages and tool output as historical context, not current server evidence. Common
-  live-state requests must rediscover sessions and execute a command in the current turn; reject
-  unverified replies when a provider ignores the required tool call.
-- Remove empty assistant placeholders on stop/completion, ignore late output while stopping, and
-  wait for cancellation acknowledgement before starting the next queued turn.
-- Forward restored chat history to the panel and display non-streaming provider replies.
-- Add a persistent shared context bridge (`get_shared_context` / `append_shared_context`) so MCP
-  clients and the side panel can exchange plans and findings while keeping live terminal state
-  verification separate.
-- Strip shell echoes, sentinel markers and terminal-only noise from command results, and reject
-  multiline/Markdown-wrapped command payloads before execution.
+### 变更
+
+- 移除远程 AI 服务商：扩展不再包含 provider 配置、API Key 聊天模式与侧边栏聊天输入。
+- 产品名统一用字母表示（`mingyu` / `anheng-mingyu`），不出现中文产品字样。
+
+### 修复
+
+- 升级 `hono`、`zod`、`vitest`、`minimatch` 等依赖以消除 Dependabot 告警；工具 schema 改用
+  Zod 4 的 `z.toJSONSchema()` 生成。
+- 处理 CodeQL 代码扫描告警：会话 ID 改用 `crypto.getRandomValues()`，移除多项式正则，
+  CI 声明只读 `GITHUB_TOKEN` 权限。
 
 ## [0.2.2] - 2026-10-29
 

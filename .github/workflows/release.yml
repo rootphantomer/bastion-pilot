@@ -1,0 +1,136 @@
+name: Release
+
+on:
+  # GitHub Actions in this repository does not receive tag or schedule events,
+  # so releases are driven by pushes to the default branch. A push also creates
+  # the version tag from package.json when it is missing.
+  push:
+    branches: [main, feat/no-remote-ai-provider]
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing tag to publish (defaults to the package.json version tag)'
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Select unpublished tag
+        id: select
+        env:
+          GH_TOKEN: ${{ github.token }}
+          INPUT_TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          tag="${INPUT_TAG:-}"
+          if [ -z "$tag" ]; then
+            version="$(node -p "require('./package.json').version")"
+            candidate="v$version"
+            case "$candidate" in
+              v[0-9]*) ;;
+              *) candidate="" ;;
+            esac
+            if [ -n "$candidate" ]; then
+              if git rev-parse -q --verify "refs/tags/$candidate" >/dev/null; then
+                # A tag without a release still needs publishing; an already
+                # released tag means this push carries no new version.
+                if ! gh release view "$candidate" >/dev/null 2>&1; then
+                  tag="$candidate"
+                fi
+              elif [ "$GITHUB_EVENT_NAME" = "push" ]; then
+                git config user.name "github-actions[bot]"
+                git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+                git tag -a "$candidate" -m "$candidate"
+                git push origin "refs/tags/$candidate"
+                tag="$candidate"
+              fi
+            fi
+          fi
+
+          if [ -z "$tag" ]; then
+            echo "No unpublished version tag found."
+            echo "tag=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          name="$tag"
+          case "$tag" in
+            *-no-remote-ai) name="$tag — 无远程 AI 服务商版本" ;;
+          esac
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+          echo "Publishing $tag"
+
+      - uses: pnpm/action-setup@v4
+        if: steps.select.outputs.tag != ''
+
+      - uses: actions/setup-node@v4
+        if: steps.select.outputs.tag != ''
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Check out tag
+        if: steps.select.outputs.tag != ''
+        run: git checkout "refs/tags/${{ steps.select.outputs.tag }}"
+
+      - name: Install and build
+        if: steps.select.outputs.tag != ''
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm build
+          pnpm extension:zip
+
+      - name: Build release body
+        if: steps.select.outputs.tag != ''
+        env:
+          TAG: ${{ steps.select.outputs.tag }}
+        run: |
+          set -euo pipefail
+          out="$RUNNER_TEMP/release-body.md"
+          {
+            if [[ "$TAG" == *-no-remote-ai ]]; then
+              echo "## 无远程 AI 服务商版本"
+              echo
+              echo "这是**不含远程 AI 服务商功能**的发行版。扩展内没有 AI 服务商配置、"
+              echo "API Key 或侧边栏聊天输入；对话请使用 Codex / Claude Code 等 MCP 客户端。"
+              echo
+            fi
+            section="${TAG#v}"
+            if grep -qF "## [$TAG]" CHANGELOG.md || grep -qF "## [$section]" CHANGELOG.md; then
+              awk -v tag="$TAG" -v section="$section" '
+                index($0, "## [" tag "]") == 1 || index($0, "## [" section "]") == 1 { found = 1; next }
+                found && /^## \[/ { exit }
+                found { print }
+              ' CHANGELOG.md
+            else
+              echo "本版本暂无更新说明。"
+            fi
+          } > "$out"
+          cat "$out"
+
+      - name: Create GitHub release
+        if: steps.select.outputs.tag != ''
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.select.outputs.tag }}
+          name: ${{ steps.select.outputs.name }}
+          body_path: ${{ runner.temp }}/release-body.md
+          files: |
+            packages/extension/bastion-pilot-extension-*.zip
+            packages/bridge/dist/cli.js

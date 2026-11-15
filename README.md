@@ -5,21 +5,23 @@
 
 **Bring AI agents to bastion-host web terminals.**
 
+> AI agents: read [AGENTS.md](./AGENTS.md) for MCP setup and the tool contract.
+
 In many companies the only way to reach production servers is through a bastion host (JumpServer,
-Qizhi, Aliyun Bastionhost, ...) that exposes a **web terminal in the browser**. There is no SSH
-access, so CLI agents like Claude Code or Codex cannot reach your servers. BastionPilot fixes
-that: a browser extension hooks the web terminal and acts as the agent's _hands and eyes_, while a
-local bridge exposes clean, auditable tools to any AI brain you prefer.
+Qizhi, Aliyun Bastionhost, Anheng Mingyu V2.0, ...) that exposes a **web terminal in the browser**.
+There is no SSH access, so CLI agents like Claude Code or Codex cannot reach your servers.
+BastionPilot fixes that: a browser extension hooks the web terminal and acts as the agent's _hands
+and eyes_, while a local bridge exposes clean, auditable tools to any AI brain you prefer.
 
 ```
-Claude Code / Codex            Side-panel chat
+Claude Code / Codex            Side panel
    (MCP stdio)                       │
-        │                            │ HTTPS → your AI provider
+        │                            │ shared context
         ▼                            ▼
 ┌─────────────────────────────────────────────┐
 │            local bridge (daemon)             │
-│  MCP server │ built-in agent │ approvals │   │
-│              │    loop      │ audit log  │   │
+│  MCP server │ shared context │ approvals │   │
+│              │               │ audit log  │   │
 └──────────────┬──────────────────────────────┘
                │ ws://127.0.0.1 + pairing token
                ▼
@@ -40,28 +42,30 @@ Claude Code / Codex            Side-panel chat
   `document_start` patches `window.WebSocket`, tees every downstream frame (the PTY stream) and
   can type into the terminal on request. Whatever the bastion product renders — xterm.js on
   canvas, WebGL, anything — the raw stream is captured before it is drawn.
-- **Everything else connects to it.** Claude Code / Codex talk to the daemon's MCP server; the
-  side-panel chat uses the daemon's built-in agent loop with your own OpenAI-compatible provider.
-  Both brains funnel through the same tool executor, the same approval policy and the same audit
-  log.
+- **Everything else connects to it.** Claude Code / Codex and other MCP clients talk to the
+  daemon's MCP server. The side panel is an approval, current-terminal approval-history and
+  read-only shared-context monitor: it has no chat input. The extension never configures or calls
+  a remote AI provider. Both paths funnel through the same tool executor, approval policy and
+  audit log.
 - **Output is made LLM-ready.** PTY bytes are decoded (UTF-8, chunk-safe), ANSI/OSC escape
   sequences are stripped, `\r`/`\b` overwrite semantics are applied (progress bars collapse into
   their final line), and oversized output is written to a local file whose path is returned to the
   agent — Claude Code can then read the full file with its own tools.
-- **Command completion is detected reliably.** After typing a command, BastionPilot appends an
-  `echo __BP_<nonce>_$?__` sentinel. The literal `$?` in the echoed input can never match the
-  result pattern, so the sentinel resolves exactly once, carrying the exit code. Quiet detection
-  and timeouts back it up for interactive situations.
+- **Command completion is detected reliably.** After typing a command, BastionPilot appends a
+  sentinel that carries the exit code. By default the marker is visible; enable “命令完成标记不脏屏”
+  in the extension settings to erase the echoed sentinel line and report the code inside an APC
+  string (which terminals consume without drawing). The exit code resolves exactly once; quiet
+  detection and timeouts back it up for interactive situations.
 - **Products are abstracted into thin profiles.** WebSocket transport is universal; framing
-  (raw / JSON / base64) and DOM hints live in declarative site profiles. JumpServer ships built
-  in; anything xterm.js-based works with the generic profile.
+  (raw / JSON / base64 / Guacamole) and DOM hints live in declarative site profiles. JumpServer and
+  Anheng Mingyu V2.0 ship built in; anything xterm.js-based works with the generic profile.
 
 ## What you get
 
-| Brain                                | How to connect                                                 |
-| ------------------------------------ | -------------------------------------------------------------- |
-| Claude Code / Codex / any MCP client | `bastion-pilot mcp` (stdio) — recommended                      |
-| Built-in side-panel chat             | any OpenAI-compatible endpoint (cloud or self-hosted/intranet) |
+| Brain                                | How to connect                                                     |
+| ------------------------------------ | ------------------------------------------------------------------ |
+| Claude Code / Codex / any MCP client | `bastion-pilot mcp` (stdio) — recommended                          |
+| Side panel                           | approvals, per-terminal approval history, read-only shared context |
 
 Tools exposed to agents: `list_sessions`, `send_command`, `read_output`, `wait_output`,
 `send_key`, `get_screen`, `upload_file`, `download_file` — see
@@ -137,34 +141,13 @@ Then, in your agent, ask something like: _"list the bastion sessions, and on web
 usage"_. The agent will call `list_sessions`, then `send_command df -h`, read the output, and
 answer — subject to your approval mode.
 
-**Built-in side-panel chat** (optional) — open the extension's **Settings → AI providers**
-section, add an API Key service, enter only its endpoint URL and API key, then click **Fetch
-models** and choose a model. The same settings can also be edited directly in
-`~/.bastion-pilot/config.json`:
-
-```json
-{
-  "providers": [
-    {
-      "id": "default",
-      "baseUrl": "https://api.openai.com/v1",
-      "apiKey": "sk-...",
-      "model": "gpt-4o"
-    }
-  ],
-  "activeProviderId": "default"
-}
-```
-
-The side panel's **Mode** selector is mutually exclusive: **API Key** calls the configured provider
-directly, while **Local Agent** lists connected Claude Code / Codex MCP conversations so you can
-target one conversation. The selected agent reads the request with `get_shared_context` and reports
-back with `append_shared_context`; set `BASTION_PILOT_CONVERSATION_ID` (or `CODEX_THREAD_ID`) in
-the MCP process environment for a human-readable conversation identity.
-
-Self-hosted / intranet gateways (vLLM, Ollama's OpenAI adapter, corporate LLM gateways) work with
-the same shape — the terminal output never has to leave your network if you don't want it to.
-Side-panel history survives restarts: reopening the panel restores the latest conversation.
+**Approval and context side panel** — the extension does not configure remote AI providers, offer
+an API-key chat mode, or accept chat input. Talk to Claude Code / Codex in their own clients with
+the `bastion-pilot mcp` server configured. The side panel surfaces approval cards, a per-terminal
+history of approved/denied/expired requests, and a read-only feed of shared context written by
+local agents; set `BASTION_PILOT_CONVERSATION_ID` (or `CODEX_THREAD_ID`) in the MCP process
+environment for a human-readable conversation identity. Every agent uses the same terminal,
+approval and audit path.
 
 ## Configuration
 
@@ -178,16 +161,16 @@ Side-panel history survives restarts: reopening the panel restores the latest co
 | `approval.requireUserApproval` | `true` | every command, keystroke and file operation needs an explicit panel approval |
 | `approval.confirmTimeoutMs`  | `120000`  | unanswered approvals are denied after this                             |
 | `approval.readonlyAllowlist` | `[]`      | regex list; in `readonly` mode matching commands are allowed           |
-| `providers[]`                | `[]`      | OpenAI-compatible providers for the built-in chat                      |
-| `activeProviderId`           | `null`    | provider used by the side panel                                        |
-| `agent.maxIterations`        | `30`      | loop cap for the built-in agent                                        |
-| `agent.systemPrompt`         | built-in  | replace the default safety-first prompt                                |
+| `providers[]`                | `[]`      | daemon built-in chat providers (not exposed by the extension)          |
+| `activeProviderId`           | `null`    | provider used by the daemon's built-in loop                            |
+| `agent.maxIterations`        | `30`      | loop cap for the daemon built-in agent                                 |
+| `agent.systemPrompt`         | built-in  | replace the daemon's default safety-first prompt                       |
 | `output.maxInlineChars`      | `6000`    | larger outputs are truncated + saved to a file                         |
 | `transcripts.enabled`        | `true`    | per-session terminal transcripts under `~/.bastion-pilot/transcripts/` |
 
-Extension-side settings (options page): daemon URL, pairing token, AI providers, granted origins
-and the site profile per origin (`generic-xterm` / `jumpserver`). AI provider settings are written
-by the authenticated local daemon and are not stored in browser sync storage.
+Extension-side settings (options page): daemon URL, pairing token, granted origins and the site
+profile per origin (`generic-xterm` / `jumpserver` / `anheng-mingyu`). The extension stores no
+remote AI provider credentials.
 
 ## Troubleshooting
 
@@ -234,6 +217,7 @@ with your company's policies** — including whether terminal output may be sent
 - [x] File upload/download over the terminal (`upload_file` / `download_file`, base64 chunks)
 - [x] iframe-based terminals (one session per terminal frame)
 - [x] More site profiles — Teleport, Qizhi, Aliyun Bastionhost (experimental, field-test welcome)
+- [x] Anheng Mingyu V2.0 (mingyu V2.0) bastion support via Guacamole instruction framing
 - [x] Session transcripts replay for post-incident review (`bastion-pilot transcripts`)
 - [x] npm publish-ready bridge package (`pnpm --filter bastion-pilot publish`)
 - [ ] Published npm package + `npx bastion-pilot mcp` (needs the maintainer's npm account)

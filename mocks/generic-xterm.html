@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>ttyd - web-01</title>
+<link rel="stylesheet" href="assets/mock.css">
+<style>body{background:#111418}</style>
+</head>
+<body>
+<!-- BastionPilot mock · profile: generic-xterm · terminalDomHints: .xterm, .xterm-screen, canvas -->
+<section class="mock-login" id="login" style="background:#111418">
+  <form onsubmit="return doLogin(event)">
+    <h2>ttyd · web-01 SSH 终端</h2>
+    <div class="sub">generic-xterm profile — 通用 xterm.js 终端（ttyd / koko / sshwifty 风格）</div>
+    <label>用户名</label><input id="lu" value="admin">
+    <label>密码</label><input id="lp" type="password" value="mock">
+    <button style="background:#2d7ff9">登 录</button>
+    <div class="hint">这是 BastionPilot 的本地模拟页面（不需要真实堡垒机）。任意凭据可登录，
+    登录后会出现 xterm.js 模拟终端，用于验证扩展的会话识别与终端交互。</div>
+  </form>
+</section>
+
+<div class="mock-layout" id="term-page" style="display:none">
+
+  <div class="mock-main">
+    <div class="mock-topbar" style="background:#161b22;color:#9ab;border-bottom:1px solid #262c36">ttyd — web-01 (10.0.0.11)</div>
+    <div class="mock-terminal-wrap">
+      <div id="mock-term-host" class=""></div>
+      <div class="mock-badge">profile: generic-xterm</div>
+    </div>
+  </div>
+</div>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/css/xterm.min.css">
+<script src="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/lib/xterm.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@xterm/addon-fit@0.10.0/lib/addon-fit.min.js"></script>
+<script>
+window.MOCK_CFG = { ws: true,
+  el: '#mock-term-host',
+  prompt: 'root@web-01:~# ',
+  hostname: 'web-01',
+  banner: 'Linux web-01 4.19.91-27.1.an8.x86_64 (mock)',
+  welcomeNote: 'Last login: Mon Oct  6 10:00:00 2025 from 10.0.0.100'
+};
+function doLogin(e) {
+  e.preventDefault();
+  document.getElementById('login').style.display = 'none';
+  document.getElementById('term-page').style.display = 'flex';
+  setTimeout(() => { window.dispatchEvent(new Event('resize')); }, 50);
+  return false;
+}
+</script>
+<script src="assets/mock-terminal.js"></script>
+</body>
+</html>

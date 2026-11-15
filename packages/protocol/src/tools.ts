@@ -58,8 +58,9 @@ export const SendCommandParams = z.object({
     .boolean()
     .optional()
     .describe(
-      'Append an `echo __BP_..._$?__` sentinel after the command so BastionPilot can ' +
-        'detect completion and exit code (default true). Set false only when typing ' +
+      'Append a completion sentinel after the command so BastionPilot can detect ' +
+        'completion and the exit code (default true). The extension setting controls ' +
+        'whether the marker is hidden from the terminal view. Set false only when typing ' +
         'into an interactive dialog (y/n confirmations, pager prompts).'
     ),
 });

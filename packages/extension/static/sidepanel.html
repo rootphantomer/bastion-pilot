@@ -16,54 +16,39 @@
       <select id="session-select" title="当前终端会话" disabled>
         <option value="">未连接终端</option>
       </select>
-      <label class="mode-picker" title="选择对话入口">
-        <span>模式</span>
-        <select id="chat-mode">
-          <option value="provider">API Key</option>
-          <option value="agent">本地 Agent</option>
-        </select>
-      </label>
-      <select id="agent-select" class="agent-select hidden" title="选择本地 Agent 对话">
-        <option value="">选择本地 Agent</option>
-      </select>
-      <button id="new-chat" class="icon-btn" title="新建对话">＋</button>
       <button id="open-options" class="icon-btn" title="打开设置">⚙</button>
     </header>
 
     <main id="transcript" class="transcript">
       <div class="empty-hint">
-        <p class="welcome-title">让 AI 安全地操作你的堡垒机</p>
-        <p><strong>BastionPilot</strong> 将浏览器终端、本地 Agent 和 AI 助手连接在一起。</p>
+        <p class="welcome-title">等待本地 Agent 活动</p>
+        <p><strong>BastionPilot</strong> 在命令执行前显示审批卡片，并在这里显示 Agent 的共享上下文。</p>
         <p>
           1. 启动本地服务：<code>bastion-pilot daemon</code><br />
           2. 在<a href="#" id="empty-options-link">设置</a>中填入配对令牌<br />
-          3. 打开堡垒机终端页面，在顶部选择 <strong>API Key</strong> 或 <strong>本地 Agent</strong>；本地 Agent 模式只会在你选择具体对话后读取上下文。
+          3. 打开堡垒机终端页面，并授权站点
         </p>
+        <p>侧边栏不再提供聊天输入；请直接在 Claude Code / Codex 等 MCP 客户端中对话。</p>
         <p id="hook-hint" class="hidden">
           已经打开终端页面？授予站点权限后刷新一次页面，插件会在页面加载时自动接管终端。
         </p>
       </div>
     </main>
 
-    <footer class="composer">
+    <footer class="panel-footer">
       <div id="approvals" class="approvals"></div>
+      <details id="approval-history" class="approval-history">
+        <summary>
+          <span>审批历史 · 当前终端</span>
+          <span id="approval-history-count" class="approval-history-count">0</span>
+        </summary>
+        <div id="approval-history-list" class="approval-history-list"></div>
+      </details>
       <div id="activity" class="activity" aria-live="polite">
-        <span class="activity-pulse"></span><span id="activity-text">就绪 · 等待你的指令</span>
-        <span id="queue-count" class="queue-count hidden"></span>
+        <span class="activity-pulse"></span><span id="activity-text">就绪 · 等待审批</span>
       </div>
-      <div id="mode-status" class="mode-status">使用 API Key</div>
-      <div class="composer-row">
-        <textarea
-          id="input"
-          rows="2"
-          placeholder="输入指令或问题…（回车发送，Shift+回车换行）"
-        ></textarea>
-        <div class="composer-actions">
-          <button id="abort-btn" class="abort hidden" title="停止当前任务">停止</button>
-          <button id="send-btn" class="send" title="发送消息">发送 <span>↵</span></button>
-        </div>
-      </div>
-      <div class="composer-foot">会话记录保存在本机 · 工具操作会经过审批并写入审计日志</div>
+      <div id="mode-status" class="mode-status">等待本地 Agent（MCP）</div>
+      <div class="panel-foot">工具操作会经过审批并写入审计日志</div>
     </footer>
 
     <script src="sidepanel.js"></script>

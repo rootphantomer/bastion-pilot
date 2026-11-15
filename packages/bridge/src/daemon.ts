@@ -10,6 +10,7 @@ import {
   parseClientMessage,
   toolSchema,
   ProviderConfigSchema,
+  type ApprovalHistoryEntry,
   type ClientMessage,
   type SessionInfo,
 } from '@bastion-pilot/protocol';
@@ -83,7 +84,15 @@ export async function startDaemon(opts: DaemonOptions = {}): Promise<DaemonHandl
         connId: string;
       }
     >(),
-    approvals: new Map<string, { resolve: (ok: boolean) => void; timer: NodeJS.Timeout }>(),
+    approvals: new Map<
+      string,
+      {
+        resolve: (ok: boolean) => void;
+        timer: NodeJS.Timeout;
+        request: Omit<ApprovalHistoryEntry, 'decision' | 'decidedAt'>;
+      }
+    >(),
+    approvalHistory: [] as ApprovalHistoryEntry[],
   };
 
   const sendTo = (conn: Conn, type: string, payload: unknown) => {
@@ -93,6 +102,33 @@ export async function startDaemon(opts: DaemonOptions = {}): Promise<DaemonHandl
   };
 
   const extensionConns = () => [...state.conns.values()].filter((c) => c.role === 'extension');
+
+  const sendApprovalHistory = (conn: Conn) => {
+    sendTo(conn, 'approval_history', { entries: state.approvalHistory });
+  };
+
+  const broadcastApprovalHistory = () => {
+    for (const ext of extensionConns()) sendApprovalHistory(ext);
+  };
+
+  const finishApproval = (
+    requestId: string,
+    decision: ApprovalHistoryEntry['decision']
+  ): boolean => {
+    const pending = state.approvals.get(requestId);
+    if (!pending) return false;
+    state.approvals.delete(requestId);
+    clearTimeout(pending.timer);
+    pending.resolve(decision === 'approved');
+    state.approvalHistory.unshift({
+      ...pending.request,
+      decision,
+      decidedAt: Date.now(),
+    });
+    if (state.approvalHistory.length > 100) state.approvalHistory.length = 100;
+    broadcastApprovalHistory();
+    return true;
+  };
 
   const agentStatus = () => {
     // The options page uses a short-lived brain-role connection only to read
@@ -133,12 +169,21 @@ export async function startDaemon(opts: DaemonOptions = {}): Promise<DaemonHandl
     }
     return new Promise<boolean>((resolve) => {
       const timer = setTimeout(
-        () => {
-          if (state.approvals.delete(req.requestId)) resolve(false);
-        },
+        () => finishApproval(req.requestId, 'expired'),
         Math.max(1_000, req.expiresAt - Date.now())
       );
-      state.approvals.set(req.requestId, { resolve, timer });
+      state.approvals.set(req.requestId, {
+        resolve,
+        timer,
+        request: {
+          requestId: req.requestId,
+          source: req.source,
+          tool: req.tool,
+          ...(req.sessionId ? { sessionId: req.sessionId } : {}),
+          summary: req.summary,
+          requestedAt: Date.now(),
+        },
+      });
       ext.ws.send(JSON.stringify(makeEnvelope('approval_request', req)));
     });
   });
@@ -577,8 +622,12 @@ export async function startDaemon(opts: DaemonOptions = {}): Promise<DaemonHandl
           })),
           activeProviderId: config.activeProviderId,
         });
-        if (conn.role === 'extension') sendTo(conn, 'agent_status', agentStatus());
-        else broadcastAgentStatus();
+        if (conn.role === 'extension') {
+          sendTo(conn, 'agent_status', agentStatus());
+          sendApprovalHistory(conn);
+        } else {
+          broadcastAgentStatus();
+        }
         return;
       }
       handleClientMessage(conn, msg);
@@ -780,11 +829,7 @@ export async function startDaemon(opts: DaemonOptions = {}): Promise<DaemonHandl
         break;
       }
       case 'approval_response': {
-        const pending = state.approvals.get(msg.payload.requestId);
-        if (!pending) break;
-        state.approvals.delete(msg.payload.requestId);
-        clearTimeout(pending.timer);
-        pending.resolve(msg.payload.approved);
+        finishApproval(msg.payload.requestId, msg.payload.approved ? 'approved' : 'denied');
         break;
       }
       default:
@@ -825,10 +870,7 @@ export async function startDaemon(opts: DaemonOptions = {}): Promise<DaemonHandl
 
   const close = async (): Promise<void> => {
     clearInterval(pingTimer);
-    for (const [, p] of state.approvals) {
-      clearTimeout(p.timer);
-      p.resolve(false);
-    }
+    for (const requestId of [...state.approvals.keys()]) finishApproval(requestId, 'expired');
     for (const [, p] of state.toolPending) {
       clearTimeout(p.timer);
       p.reject(new Error('daemon shutting down'));

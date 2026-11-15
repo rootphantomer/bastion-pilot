@@ -33,6 +33,7 @@ interface Settings {
   token: string;
   sites: Array<{ origin: string; profileId?: string }>;
   defaultWaitMs?: number;
+  hiddenSentinel?: boolean;
 }
 
 declare global {
@@ -60,9 +61,16 @@ async function loadSettings(): Promise<Settings> {
       token: settings?.token ?? '',
       sites: settings?.sites ?? [],
       defaultWaitMs: settings?.defaultWaitMs ?? 10_000,
+      hiddenSentinel: settings?.hiddenSentinel === true,
     };
   } catch {
-    return { daemonUrl: 'ws://127.0.0.1:8765', token: '', sites: [], defaultWaitMs: 10_000 };
+    return {
+      daemonUrl: 'ws://127.0.0.1:8765',
+      token: '',
+      sites: [],
+      defaultWaitMs: 10_000,
+      hiddenSentinel: false,
+    };
   }
 }
 
@@ -95,6 +103,7 @@ class TabController {
     chrome.storage.onChanged.addListener(async (changes, area) => {
       if (area === 'sync' && changes[SETTINGS_KEY]) {
         this.settings = await loadSettings();
+        this.session?.setHiddenSentinel(this.settings.hiddenSentinel === true);
       }
     });
 
@@ -193,7 +202,12 @@ class TabController {
       profile,
       (data) => this.writeSocket(socketId, data),
       location.href,
-      title
+      title,
+      {
+        bracketedPaste: profile.io?.bracketedPaste,
+        cleanOutput: profile.io?.cleanOutput,
+        hiddenSentinel: this.settings?.hiddenSentinel === true,
+      }
     );
     this.session.feed(firstFrame);
     void this.registerWithWorker();

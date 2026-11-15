@@ -4,8 +4,8 @@ import {
   extractExitCode,
   newSentinelNonce,
   sentinelCommandFor,
+  stripTrailingNewlines,
   wrapCommandWithSentinel,
-  cleanCommandOutput,
   type SessionInfo,
 } from '@bastion-pilot/protocol';
 import { createFramer, type Framer } from './framer.js';
@@ -25,11 +25,19 @@ export interface ExecuteOptions {
 
 export interface SessionOptions {
   /**
-   * Bracketed-paste mode for command typing. The production default is false
-   * so opening a terminal never emits an unapproved probe command; null keeps
-   * the legacy probe available for explicit compatibility/testing.
+   * Bracketed-paste mode for command typing: null (default) probes the shell
+   * once on the first sentinel-attached command; true/false force it. Plain
+   * typing is always used for interactive keystrokes.
    */
   bracketedPaste?: boolean | null;
+  /**
+   * Keep the completion sentinel off the visible terminal view (default false).
+   * Enabling this uses the invisible marker; otherwise the legacy visible
+   * `echo __BP_..._$?__` form is used.
+   */
+  hiddenSentinel?: boolean;
+  /** Strip shell echo, prompts and sentinel markers from command results. */
+  cleanOutput?: boolean;
 }
 
 export interface CommandResult {
@@ -70,9 +78,13 @@ export class TerminalSession {
   private readonly ring = new TextRingBuffer(200_000);
   private readonly decoder = new TextDecoder('utf-8');
   private readonly waiters: SentinelWaiter[] = [];
-  private scanTail = '';
+  /** Recent undigested PTY text; hidden sentinels are erased from the screen,
+   * so they are only ever findable here. */
+  private rawTail = '';
   private lastDataAt = 0;
   private bracketedPaste: boolean | null;
+  private hiddenSentinel: boolean;
+  private readonly cleanOutput: boolean;
 
   constructor(
     readonly socketId: string,
@@ -82,9 +94,11 @@ export class TerminalSession {
     public readonly title: string,
     opts: SessionOptions = {}
   ) {
-    this.sessionId = `sess_${Math.random().toString(36).slice(2, 10)}${Date.now().toString(36).slice(-4)}`;
+    this.sessionId = newSessionId();
     this.framer = createFramer(profile.framer);
-    this.bracketedPaste = opts.bracketedPaste === undefined ? false : opts.bracketedPaste;
+    this.bracketedPaste = opts.bracketedPaste ?? null;
+    this.hiddenSentinel = opts.hiddenSentinel === true;
+    this.cleanOutput = opts.cleanOutput === true;
     this.info = {
       sessionId: this.sessionId,
       title,
@@ -116,19 +130,27 @@ export class TerminalSession {
   }
 
   private append(text: string) {
+    this.rawTail = (this.rawTail + text).slice(-SCAN_TAIL_CHARS);
     const completed = this.renderer.push(text);
     if (completed.length > 0) {
       const split = completed.split('\n');
       split.pop(); // push() always terminates completed lines with '\n'
-      this.ring.writeLines(split.map((l) => l + '\n'));
-      this.scanTail = (this.scanTail + completed).slice(-SCAN_TAIL_CHARS);
+      const lines = split
+        .map((l) => l + '\n')
+        .filter((l) => !(this.hiddenSentinel && SENTINEL_ECHO.test(l)));
+      if (lines.length > 0) this.ring.writeLines(lines);
     }
     this.lastActivityAt = Date.now();
     this.checkWaiters();
   }
 
   private scanText(): string {
-    return this.scanTail + this.renderer.pending();
+    return this.rawTail;
+  }
+
+  /** Toggle the invisible sentinel without recreating the session. */
+  setHiddenSentinel(hidden: boolean) {
+    this.hiddenSentinel = hidden;
   }
 
   private checkWaiters() {
@@ -152,7 +174,7 @@ export class TerminalSession {
   } {
     const result = this.ring.readFromCursor(cursor, maxChars);
     const pending = this.renderer.pending();
-    return { ...result, text: stripSentinelNoise(result.text + pending) };
+    return { ...result, text: result.text + pending };
   }
 
   /** Snapshot of the visible screen (fallback when no xterm instance is reachable). */
@@ -192,8 +214,11 @@ export class TerminalSession {
 
   /**
    * Type a command and watch its execution:
-   * - sentinel attached: resolve when `echo __BP_..._$?__` prints (exit code
-   *   included), when output goes quiet, or when the wait elapses;
+   * - sentinel attached: resolve when the `__BP_<nonce>_<code>__` marker reaches
+   *   the raw PTY stream (exit code included), when output goes quiet, or when
+   *   the wait elapses. With the hidden-sentinel setting enabled the marker
+   *   also erases its own line, so the view shows only the command the agent
+   *   typed;
    * - no sentinel (interactive dialogs): resolve on quiet or timeout only.
    *
    * The first sentinel-attached command probes the shell for bracketed-paste
@@ -204,34 +229,33 @@ export class TerminalSession {
     const waitMs = opts.waitMs ?? 10_000;
     const quietMs = opts.quietMs ?? 800;
     const attachSentinel = opts.attachSentinel !== false;
-    const initialCursor = this.ring.endCursor;
+    const cursorBefore = this.ring.endCursor;
 
     if (!attachSentinel) {
       const sentAt = Date.now();
       this.typeText(`${command}\r`);
       const status = await this.waitQuietOrTimeout(sentAt, waitMs, quietMs);
-      return this.buildResult(initialCursor, status, null, command);
+      return this.buildResult(cursorBefore, status, null, command);
     }
 
     if (this.bracketedPaste === null) {
       this.bracketedPaste = await this.probeBracketedPaste(Math.max(800, Math.min(waitMs, 3_000)));
     }
 
-    // Do not include the one-time bracketed-paste probe in the user's command
-    // result; it is an internal capability check, not terminal output.
-    const cursorBefore = this.ring.endCursor;
-
     const nonce = newSentinelNonce();
     const { waiter, done } = this.addWaiter(nonce);
 
     const sentAt = Date.now();
     if (this.bracketedPaste) {
-      const cmd = command.replace(/\n+$/, '');
+      const cmd = stripTrailingNewlines(command);
       this.typeText(
-        `${BRACKETED_PASTE_START}${cmd}${BRACKETED_PASTE_END}\n${sentinelCommandFor(nonce)}\n`
+        `${BRACKETED_PASTE_START}${cmd}${BRACKETED_PASTE_END}\n${sentinelCommandFor(
+          nonce,
+          this.hiddenSentinel
+        )}\n`
       );
     } else {
-      this.typeText(wrapCommandWithSentinel(command, nonce));
+      this.typeText(wrapCommandWithSentinel(command, nonce, this.hiddenSentinel));
     }
 
     const raced = await Promise.race([
@@ -258,7 +282,10 @@ export class TerminalSession {
     const { waiter, done } = this.addWaiter(nonce);
     const sentAt = Date.now();
     this.typeText(
-      `${BRACKETED_PASTE_START}true${BRACKETED_PASTE_END}\n${sentinelCommandFor(nonce)}\n`
+      `${BRACKETED_PASTE_START}true${BRACKETED_PASTE_END}\n${sentinelCommandFor(
+        nonce,
+        this.hiddenSentinel
+      )}\n`
     );
     const raced = await Promise.race([
       done.then(() => 'completed' as const),
@@ -341,20 +368,55 @@ export class TerminalSession {
       status,
       exitCode,
       cursor: result.nextCursor,
-      text: cleanCommandOutput(result.text, command),
+      text: this.cleanOutput ? cleanTerminalEcho(result.text, command) : result.text,
       hasMore: result.hasMore,
     };
   }
+}
+
+const SENTINEL_LINE = /__BP_[0-9a-f]{8}_/;
+/**
+ * Shell echo of the sentinel command line. In hidden mode the renderer drops
+ * its escape sequences but keeps the nonce and the literal `%s` / `$?`, and
+ * the line is never useful to a reader, so it stays out of the output buffer.
+ */
+const SENTINEL_ECHO = /__BP_[0-9a-f]{8}_(\$\?|%s)__/;
+const PROMPT_ONLY = /^\s*(?:\[[^\]]+\]|[\w.-]+@[\w.:~/-]+)\s*[#$>]\s*$/;
+
+/**
+ * Remove the shell's own noise from a command result: the echoed command
+ * (with or without its prompt), prompt-only lines, sentinel markers, and the
+ * blank lines left at both ends. Only used for profiles that opt in.
+ */
+export function cleanTerminalEcho(text: string, command?: string): string {
+  const cmd = (command ?? '').replace(/\r/g, '').trim();
+  const out: string[] = [];
+  for (const raw of text.split('\n')) {
+    const line = raw.replace(/\r/g, '');
+    if (SENTINEL_LINE.test(line)) continue;
+    if (!line.trim()) {
+      out.push('');
+      continue;
+    }
+    if (cmd && line.trim().endsWith(cmd)) {
+      const prefix = line.slice(0, line.length - cmd.length);
+      if (!prefix.trim() || /[#$>]\s*$/.test(prefix)) continue; // echoed command
+    }
+    if (PROMPT_ONLY.test(line)) continue;
+    out.push(line);
+  }
+  while (out.length > 0 && out[0]!.trim() === '') out.shift();
+  while (out.length > 0 && out[out.length - 1]!.trim() === '') out.pop();
+  return out.join('\n');
 }
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-/** Hide the internal completion marker from tool results while retaining it in the raw buffer. */
-function stripSentinelNoise(text: string): string {
-  return text
-    .split('\n')
-    .filter((line) => !line.includes('__BP_') || !/(?:\$\?__|_[0-9]+__)/.test(line))
-    .join('\n');
+function newSessionId(): string {
+  const bytes = new Uint8Array(8);
+  crypto.getRandomValues(bytes);
+  const suffix = Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+  return `sess_${suffix}`;
 }

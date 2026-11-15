@@ -3,3 +3,9 @@ packages:
 
 allowBuilds:
   esbuild: true
+
+overrides:
+  '@hono/node-server': 2.1.8
+  hono: 4.13.18
+  minimatch@<11.0.1: 11.0.8
+  tinypool@<2.1.2: 2.2.0

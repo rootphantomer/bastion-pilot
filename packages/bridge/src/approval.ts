@@ -16,9 +16,11 @@ export interface ApprovalPolicy {
   readonlyAllowlist?: string[];
 }
 
+export type ApprovalSource = 'mcp' | 'agent' | 'panel';
+
 export interface ApprovalRequest {
   requestId: string;
-  source: string;
+  source: ApprovalSource;
   tool: string;
   sessionId?: string;
   summary: string;
@@ -74,7 +76,7 @@ export class ApprovalEngine {
   ) {}
 
   async check(
-    source: string,
+    source: ApprovalSource,
     tool: string,
     params: Record<string, unknown>
   ): Promise<ApprovalDecision> {

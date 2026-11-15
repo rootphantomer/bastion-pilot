@@ -41,6 +41,31 @@ afterEach(() => {
 });
 
 describe('AgentLoop provider calls', () => {
+  it('sends tool schemas as plain JSON Schema without $schema', async () => {
+    const bodies: Array<{
+      tools?: Array<{
+        function: { name: string; parameters: Record<string, unknown> };
+      }>;
+    }> = [];
+    vi.stubGlobal('fetch', async (_url: unknown, init?: RequestInit) => {
+      bodies.push(JSON.parse(String(init?.body)));
+      return Response.json({ choices: [{ message: { content: 'done' } }] });
+    });
+    await makeLoop().run({
+      messages: [{ role: 'user', content: 'hi' }],
+      signal: abort(),
+      hooks,
+    });
+    const tools = bodies[0]!.tools ?? [];
+    const sendCommand = tools.find((tool) => tool.function.name === 'send_command');
+    expect(sendCommand).toBeTruthy();
+    expect(sendCommand!.function.parameters).not.toHaveProperty('$schema');
+    expect(sendCommand!.function.parameters).toMatchObject({
+      type: 'object',
+      properties: { sessionId: { type: 'string' }, command: { type: 'string' } },
+    });
+  });
+
   it('sends the configured system prompt with every request', async () => {
     const bodies: Array<{ messages: Array<{ role: string; content: string }> }> = [];
     vi.stubGlobal('fetch', async (_url: unknown, init?: RequestInit) => {

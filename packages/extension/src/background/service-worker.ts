@@ -2,6 +2,7 @@ import {
   makeEnvelope,
   parseDaemonMessage,
   ToolName,
+  type ApprovalHistoryEntry,
   type DaemonMessage,
   type SessionInfo,
 } from '@bastion-pilot/protocol';
@@ -25,7 +26,6 @@ interface Settings {
   token: string;
   sites: SiteEntry[];
   defaultWaitMs?: number;
-  chatMode?: 'provider' | 'agent';
 }
 
 interface PendingApproval {
@@ -214,6 +214,7 @@ class SessionRegistry {
 
 const pendingTools = new Map<string, PendingTool>();
 const pendingApprovals = new Map<string, PendingApproval>();
+let approvalHistory: ApprovalHistoryEntry[] = [];
 const panelPorts = new Set<chrome.runtime.Port>();
 let agentConnected = false;
 let agentNames: string[] = [];
@@ -235,6 +236,7 @@ function broadcastState() {
     agents,
     sessions: registry.list(),
     approvals: [...pendingApprovals.values()],
+    approvalHistory,
   };
   for (const port of panelPorts) {
     try {
@@ -271,6 +273,8 @@ const daemon = new DaemonConnection(
       agentConnected = false;
       agentNames = [];
       agents = [];
+      pendingApprovals.clear();
+      approvalHistory = [];
     }
     broadcastState();
   }
@@ -299,21 +303,18 @@ async function onDaemonMessage(msg: DaemonMessage) {
       notifyApproval(req);
       return;
     }
+    case 'approval_history':
+      approvalHistory = msg.payload.entries;
+      broadcastState();
+      return;
     case 'agent_status':
       agentConnected = msg.payload.connected;
       agentNames = msg.payload.names;
       agents = msg.payload.agents;
       broadcastState();
       return;
-    case 'chat_created':
-    case 'chat_replay':
-    case 'chat_delta':
-    case 'chat_tool_call':
-    case 'chat_tool_result':
-    case 'chat_done':
     case 'shared_context_event':
     case 'shared_context_replay':
-    case 'providers_list':
     case 'error':
       forwardToPanels({ kind: 'chat-event', message: msg });
       return;
@@ -426,47 +427,11 @@ chrome.runtime.onConnect.addListener((port) => {
   if (port.name === 'panel') {
     panelPorts.add(port);
     port.onMessage.addListener(
-      (msg: {
-        kind?: string;
-        providerId?: string;
-        sessionId?: string;
-        fresh?: boolean;
-        chatId?: string;
-        text?: string;
-        targetAgentId?: string;
-        requestId?: string;
-        limit?: number;
-        approved?: boolean;
-      }) => {
+      (msg: { kind?: string; requestId?: string; limit?: number; approved?: boolean }) => {
         switch (msg.kind) {
-          case 'chat-new':
-            daemon.send('chat_new', {
-              providerId: msg.providerId,
-              sessionId: msg.sessionId,
-              fresh: msg.fresh === true,
-            });
-            break;
-          case 'chat-message':
-            if (msg.chatId && msg.text)
-              daemon.send('chat_message', { chatId: msg.chatId, text: msg.text });
-            break;
-          case 'chat-abort':
-            if (msg.chatId) daemon.send('chat_abort', { chatId: msg.chatId });
-            break;
-          case 'agent-message':
-            if (msg.text)
-              daemon.send('shared_context_append', {
-                role: 'user',
-                content: msg.text,
-                chatId: msg.chatId,
-                targetAgentId: msg.targetAgentId,
-                requestId: msg.requestId,
-              });
-            break;
           case 'get-shared-context':
             daemon.send('shared_context_get', {
               limit: msg.limit ?? 50,
-              targetAgentId: msg.targetAgentId,
             });
             break;
           case 'approval-response':
@@ -490,6 +455,7 @@ chrome.runtime.onConnect.addListener((port) => {
                 agents,
                 sessions: registry.list(),
                 approvals: [...pendingApprovals.values()],
+                approvalHistory,
               });
             } catch {
               /* ignore */

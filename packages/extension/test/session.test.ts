@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { TerminalSession } from '../src/content/session.js';
+import { sentinelCommandFor } from '@bastion-pilot/protocol';
+import { TerminalSession, cleanTerminalEcho } from '../src/content/session.js';
 import { GENERIC_XTERM_PROFILE } from '../src/profiles.js';
 import { keySequence } from '../src/content/keys.js';
 
@@ -12,7 +13,7 @@ interface Harness {
   feed(text: string): void;
 }
 
-function makeSession(bracketedPaste: boolean | null = false): Harness {
+function makeSession(bracketedPaste: boolean | null = false, hiddenSentinel = false): Harness {
   const writes: string[] = [];
   const session = new TerminalSession(
     'ws_1',
@@ -20,7 +21,7 @@ function makeSession(bracketedPaste: boolean | null = false): Harness {
     (data) => writes.push(decoder.decode(data as ArrayBuffer)),
     'https://bastion.example.com/koko/',
     'web-01',
-    { bracketedPaste }
+    { bracketedPaste, hiddenSentinel }
   );
   return {
     session,
@@ -33,6 +34,17 @@ function extractNonce(payload: string): string {
   const match = /__BP_([0-9a-f]{8})_\$\?__/.exec(payload);
   if (!match) throw new Error(`no sentinel found in: ${payload}`);
   return match[1]!;
+}
+
+function extractHiddenNonce(payload: string): string {
+  const match = /__BP_([0-9a-f]{8})_%s__/.exec(payload);
+  if (!match) throw new Error(`no hidden sentinel found in: ${payload}`);
+  return match[1]!;
+}
+
+/** What the hidden sentinel draws: erase the echo, then report inside an APC string. */
+function hiddenSentinelOutput(nonce: string, code: number): string {
+  return `\x1b[1A\x1b[2K\x1b___BP_${nonce}_${code}__\x1b\\`;
 }
 
 describe('TerminalSession', () => {
@@ -55,8 +67,8 @@ describe('TerminalSession', () => {
     expect(result.status).toBe('completed');
     expect(result.exitCode).toBe(0);
     expect(result.text).toContain('file1.txt');
-    // Internal sentinel lines are used for completion but are not user output.
-    expect(result.text).not.toContain('__BP_');
+    // The echoed `echo` line (with literal $?) must not have been matched early.
+    expect(result.text).toContain('$?__');
   });
 
   it('reports non-zero exit codes', async () => {
@@ -68,6 +80,44 @@ describe('TerminalSession', () => {
     const result = await promise;
     expect(result.status).toBe('completed');
     expect(result.exitCode).toBe(1);
+  });
+
+  it('resolves the hidden sentinel from the raw stream without dirtying output', async () => {
+    const h = makeSession(false, true);
+    const promise = h.session.executeCommand('ls -la', { waitMs: 4_000 });
+    await new Promise((r) => setTimeout(r, 20));
+    const nonce = extractHiddenNonce(h.writes[0] ?? '');
+    expect(h.writes[0]).toBe(`ls -la\n${sentinelCommandFor(nonce, true)}\n`);
+
+    h.feed(
+      [
+        'ls -la',
+        sentinelCommandFor(nonce, true),
+        'total 8',
+        'file1.txt',
+        hiddenSentinelOutput(nonce, 0),
+        'prompt$ ',
+      ].join('\r\n') + '\r\n'
+    );
+
+    const result = await promise;
+    expect(result.status).toBe('completed');
+    expect(result.exitCode).toBe(0);
+    expect(result.text).toContain('file1.txt');
+    expect(result.text).not.toContain('__BP_');
+    expect(result.text).not.toContain('printf');
+  });
+
+  it('applies a hidden-sentinel toggle to later commands', async () => {
+    const h = makeSession(false, false);
+    h.session.setHiddenSentinel(true);
+    const promise = h.session.executeCommand('pwd', { waitMs: 4_000 });
+    await new Promise((r) => setTimeout(r, 20));
+    const nonce = extractHiddenNonce(h.writes[0] ?? '');
+    h.feed(`/srv/app\r\n${hiddenSentinelOutput(nonce, 0)}\r\n`);
+    const result = await promise;
+    expect(result.status).toBe('completed');
+    expect(result.text).toContain('/srv/app');
   });
 
   it('times out when the command produces no sentinel', async () => {
@@ -214,6 +264,33 @@ describe('TerminalSession', () => {
     expect(h.writes[0]).toBe('y\r');
     h.feed('done\r\n');
     await promise;
+  });
+});
+
+describe('cleanTerminalEcho', () => {
+  it('removes the echoed command, prompt lines and sentinel markers', () => {
+    const raw = [
+      '[root@ceshi-bianm ~]# hostname; uptime',
+      'ceshi-bianm',
+      ' 22:39:20 up 22 days,  1 user,  load average: 0.00',
+      '[root@ceshi-bianm ~]# echo __BP_aa3c0f62_$?__',
+      '__BP_aa3c0f62_0__',
+      '[root@ceshi-bianm ~]# ',
+      '',
+    ].join('\n');
+    expect(cleanTerminalEcho(raw, 'hostname; uptime')).toBe(
+      'ceshi-bianm\n 22:39:20 up 22 days,  1 user,  load average: 0.00'
+    );
+  });
+
+  it('removes a command echo without a prompt', () => {
+    expect(cleanTerminalEcho('ls\nfile1\nfile2\n', 'ls')).toBe('file1\nfile2');
+  });
+
+  it('leaves unrelated prompts alone', () => {
+    expect(cleanTerminalEcho('user@host:~# not-a-command\n', 'ls')).toBe(
+      'user@host:~# not-a-command'
+    );
   });
 });
 

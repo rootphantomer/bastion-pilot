@@ -1,5 +1,5 @@
 import { TOOLS, toolSchema, type ToolDescriptor, type ToolName } from '@bastion-pilot/protocol';
-import { zodToJsonSchema } from 'zod-to-json-schema';
+import { z } from 'zod';
 import type { ProviderConfig } from './config.js';
 
 export interface ChatMessage {
@@ -113,7 +113,7 @@ export class AgentLoop {
       function: {
         name: t.name,
         description: t.description,
-        parameters: zodToJsonSchema(toolSchema(t.name as ToolName), { $refStrategy: 'none' }),
+        parameters: toolParameters(toolSchema(t.name as ToolName)),
       },
     }));
   }
@@ -400,6 +400,16 @@ export class AgentLoop {
         .filter((tc) => tc.name.length > 0),
     };
   }
+}
+
+/** JSON Schema for an OpenAI tool definition (Zod 4 generates it natively). */
+function toolParameters(schema: z.ZodType): Record<string, unknown> {
+  const json = z.toJSONSchema(schema, { target: 'draft-7', io: 'input' }) as Record<
+    string,
+    unknown
+  >;
+  delete json.$schema;
+  return json;
 }
 
 function normalizeToolCalls(raw: unknown[]): AccumulatedToolCall[] {
