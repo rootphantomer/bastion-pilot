@@ -49,27 +49,6 @@ body { margin: 0; display: flex; flex-direction: column; height: 100vh; overflow
 .approval button { flex: 1; padding: 5px 0; border-radius: 7px; border: 1px solid var(--line); background: var(--paper-strong); color: var(--ink); cursor: pointer; font: inherit; }
 .approval button.approve:hover { border-color: var(--ok); color: var(--ok); }
 .approval button.deny:hover { border-color: var(--err); color: var(--err); }
-.approval-history { margin-top: 3px; border-top: 1px solid var(--line); padding-top: 4px; }
-.approval-history summary { display: flex; align-items: center; gap: 6px; padding: 4px 2px; color: var(--muted); font-size: 11px; font-weight: 700; list-style: none; cursor: pointer; }
-.approval-history summary::-webkit-details-marker { display: none; }
-.approval-history summary::before { content: "▸"; color: var(--teal); font-size: 10px; }
-.approval-history[open] summary::before { content: "▾"; }
-.approval-history summary > span:first-of-type { flex: 1; }
-.approval-history-count { min-width: 18px; padding: 0 5px; border-radius: 999px; background: var(--teal-soft); color: var(--teal); text-align: center; font-size: 10px; line-height: 16px; }
-.approval-history-list { display: flex; flex-direction: column; gap: 5px; max-height: 160px; overflow-y: auto; padding: 3px 1px 2px; }
-.approval-history-item { padding: 6px 8px; border: 1px solid var(--line); border-left: 3px solid var(--muted); border-radius: 9px; background: var(--paper-strong); }
-.approval-history-item.approved { border-left-color: var(--ok); }
-.approval-history-item.denied { border-left-color: var(--err); }
-.approval-history-item.expired { border-left-color: var(--warn); }
-.approval-history-head { display: flex; align-items: center; gap: 6px; font-size: 10.5px; }
-.approval-history-decision { color: var(--muted); font-weight: 800; }
-.approval-history-item.approved .approval-history-decision { color: var(--ok); }
-.approval-history-item.denied .approval-history-decision { color: var(--err); }
-.approval-history-item.expired .approval-history-decision { color: var(--warn); }
-.approval-history-title { flex: 1; min-width: 0; color: var(--ink); font-weight: 650; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.approval-history-time { color: var(--muted); font-variant-numeric: tabular-nums; }
-.approval-history-summary { margin-top: 2px; color: #4f6363; font: 11px ui-monospace, SFMono-Regular, Menlo, monospace; white-space: pre-wrap; word-break: break-all; }
-.approval-history-empty { padding: 6px 2px; color: var(--muted); font-size: 11px; }
 .activity { display: flex; align-items: center; gap: 7px; min-height: 24px; color: var(--muted); font-size: 11px; }
 .mode-status { min-height: 16px; margin: -2px 2px 4px; color: var(--muted); font-size: 10px; }
 .mode-status.ok { color: var(--ok); font-weight: 700; }

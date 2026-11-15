@@ -23,7 +23,7 @@ Agent (MCP stdio)  ──►  local daemon (127.0.0.1)  ──►  browser exten
 - **浏览器扩展**是终端 I/O 的唯一执行者：它拦截页面自己的 WebSocket，读取 PTY 输出并向终端输入。
 - **本地 daemon** 提供 MCP Server、审批、审计、共享上下文和文件传输编排。
 - **扩展不包含远程 AI 服务商**：没有 API Key 配置，也没有侧边栏聊天输入。对话发生在
-  Codex / Claude Code 自己的客户端里，扩展侧边栏只显示审批卡片、当前终端审批历史和只读
+  Codex / Claude Code 自己的客户端里，扩展侧边栏只显示审批卡片和只读
   共享上下文。
 
 当前默认分支：`feat/no-remote-ai-provider`。

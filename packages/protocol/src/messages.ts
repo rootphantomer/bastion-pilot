@@ -55,18 +55,6 @@ export const SessionInfoLikeSchema = z.object({
   lastActivityAt: z.number(),
 });
 
-export const ApprovalHistoryEntrySchema = z.object({
-  requestId: z.string(),
-  source: z.enum(['mcp', 'agent', 'panel']),
-  tool: z.string(),
-  sessionId: z.string().optional(),
-  summary: z.string(),
-  decision: z.enum(['approved', 'denied', 'expired']),
-  requestedAt: z.number(),
-  decidedAt: z.number(),
-});
-export type ApprovalHistoryEntry = z.infer<typeof ApprovalHistoryEntrySchema>;
-
 export const ProviderInfoSchema = z.object({
   id: z.string(),
   label: z.string(),
@@ -444,15 +432,6 @@ export const DaemonMessage = z.discriminatedUnion('type', [
       sessionId: z.string().optional(),
       summary: z.string(),
       expiresAt: z.number(),
-    }),
-  }),
-  z.object({
-    v: z.literal(1),
-    id: z.string(),
-    ts: z.number(),
-    type: z.literal('approval_history'),
-    payload: z.object({
-      entries: z.array(ApprovalHistoryEntrySchema),
     }),
   }),
   z.object({

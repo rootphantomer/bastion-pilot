@@ -2,7 +2,6 @@ import {
   makeEnvelope,
   parseDaemonMessage,
   ToolName,
-  type ApprovalHistoryEntry,
   type DaemonMessage,
   type SessionInfo,
 } from '@bastion-pilot/protocol';
@@ -214,7 +213,6 @@ class SessionRegistry {
 
 const pendingTools = new Map<string, PendingTool>();
 const pendingApprovals = new Map<string, PendingApproval>();
-let approvalHistory: ApprovalHistoryEntry[] = [];
 const panelPorts = new Set<chrome.runtime.Port>();
 let agentConnected = false;
 let agentNames: string[] = [];
@@ -236,7 +234,6 @@ function broadcastState() {
     agents,
     sessions: registry.list(),
     approvals: [...pendingApprovals.values()],
-    approvalHistory,
   };
   for (const port of panelPorts) {
     try {
@@ -274,7 +271,6 @@ const daemon = new DaemonConnection(
       agentNames = [];
       agents = [];
       pendingApprovals.clear();
-      approvalHistory = [];
     }
     broadcastState();
   }
@@ -303,10 +299,6 @@ async function onDaemonMessage(msg: DaemonMessage) {
       notifyApproval(req);
       return;
     }
-    case 'approval_history':
-      approvalHistory = msg.payload.entries;
-      broadcastState();
-      return;
     case 'agent_status':
       agentConnected = msg.payload.connected;
       agentNames = msg.payload.names;
@@ -455,7 +447,6 @@ chrome.runtime.onConnect.addListener((port) => {
                 agents,
                 sessions: registry.list(),
                 approvals: [...pendingApprovals.values()],
-                approvalHistory,
               });
             } catch {
               /* ignore */

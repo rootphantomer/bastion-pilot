@@ -322,35 +322,6 @@ describe('daemon e2e', () => {
     ).rejects.toThrow(/Blocked by approval policy/);
   });
 
-  it('keeps the approval decision history for each terminal session', async () => {
-    const { ext, brain } = await boot('confirm');
-    ext.sendSessions([session]);
-    ext.onApprovalRequest = (req) => ext.replyApproval(req.requestId, true);
-    ext.onToolCall = (call) =>
-      ext.replyTool(call.callId, {
-        status: 'completed',
-        exitCode: 0,
-        cursor: 1,
-        text: '',
-        hasMore: false,
-      });
-
-    await brain.executeTool('mcp', 'send_command', {
-      sessionId: 'sess_1',
-      command: 'uptime',
-    });
-
-    const history = ext.last('approval_history');
-    expect(history?.payload.entries).toEqual([
-      expect.objectContaining({
-        sessionId: 'sess_1',
-        tool: 'send_command',
-        decision: 'approved',
-        summary: expect.stringContaining('uptime'),
-      }),
-    ]);
-  });
-
   it('blocks mutating tools in readonly mode while allowing reads', async () => {
     const { ext, brain } = await boot('readonly');
     ext.onToolCall = (call) => ext.replyTool(call.callId, { screen: 'ok', truncated: false });

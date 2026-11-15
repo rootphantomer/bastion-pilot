@@ -4,8 +4,6 @@
  * 'panel' port.
  */
 
-import type { ApprovalHistoryEntry } from '@bastion-pilot/protocol';
-
 interface StateMessage {
   kind: 'state';
   connected: boolean;
@@ -21,7 +19,6 @@ interface StateMessage {
   }>;
   sessions: Array<{ sessionId: string; title: string; state: string; profileId: string }>;
   approvals: Array<{ requestId: string; tool: string; summary: string; sessionId?: string }>;
-  approvalHistory: ApprovalHistoryEntry[];
 }
 
 interface ChatEventMessage {
@@ -41,8 +38,6 @@ const statusDot = document.getElementById('status-dot')!;
 const sessionSelect = document.getElementById('session-select') as HTMLSelectElement;
 const modeStatus = document.getElementById('mode-status')!;
 const approvalsEl = document.getElementById('approvals')!;
-const approvalHistoryCount = document.getElementById('approval-history-count')!;
-const approvalHistoryList = document.getElementById('approval-history-list')!;
 const emptyHint = document.querySelector('.empty-hint');
 const activityEl = document.getElementById('activity')!;
 const activityText = document.getElementById('activity-text')!;
@@ -50,7 +45,6 @@ const activityText = document.getElementById('activity-text')!;
 let agentConnected = false;
 let sharedReplayRendered = false;
 let replayRequested = false;
-let latestState: StateMessage | null = null;
 let selectedSessionId = '';
 
 function postToBackground(message: unknown) {
@@ -141,61 +135,7 @@ function renderApprovals(approvals: StateMessage['approvals']) {
   }
 }
 
-const DECISION_LABELS: Record<ApprovalHistoryEntry['decision'], string> = {
-  approved: '已批准',
-  denied: '已拒绝',
-  expired: '已超时',
-};
-
-function formatHistoryTime(timestamp: number): string {
-  return new Date(timestamp).toLocaleTimeString('zh-CN', { hour12: false });
-}
-
-function renderApprovalHistory(entries: ApprovalHistoryEntry[], sessionId: string) {
-  const visible = sessionId ? entries.filter((entry) => entry.sessionId === sessionId) : [];
-  approvalHistoryCount.textContent = String(visible.length);
-  approvalHistoryList.textContent = '';
-
-  if (visible.length === 0) {
-    const empty = document.createElement('div');
-    empty.className = 'approval-history-empty';
-    empty.textContent = sessionId ? '当前终端暂无审批记录' : '未选择终端';
-    approvalHistoryList.appendChild(empty);
-    return;
-  }
-
-  for (const entry of visible) {
-    const item = document.createElement('div');
-    item.className = `approval-history-item ${entry.decision}`;
-
-    const head = document.createElement('div');
-    head.className = 'approval-history-head';
-
-    const decision = document.createElement('span');
-    decision.className = 'approval-history-decision';
-    decision.textContent = DECISION_LABELS[entry.decision];
-
-    const title = document.createElement('span');
-    title.className = 'approval-history-title';
-    title.textContent = toolLabel(entry.tool);
-
-    const time = document.createElement('time');
-    time.className = 'approval-history-time';
-    time.dateTime = new Date(entry.decidedAt).toISOString();
-    time.textContent = formatHistoryTime(entry.decidedAt);
-
-    const summary = document.createElement('div');
-    summary.className = 'approval-history-summary';
-    summary.textContent = entry.summary;
-
-    head.append(decision, title, time);
-    item.append(head, summary);
-    approvalHistoryList.appendChild(item);
-  }
-}
-
 function renderState(state: StateMessage) {
-  latestState = state;
   agentConnected = state.agentConnected;
   statusDot.className = `dot ${state.connected ? 'dot-on' : 'dot-off'}`;
   statusDot.title = state.connected ? '本地服务已连接' : '本地服务未连接';
@@ -227,7 +167,6 @@ function renderState(state: StateMessage) {
   }
 
   renderApprovals(state.approvals);
-  renderApprovalHistory(state.approvalHistory, selectedSessionId);
   setActivity(
     !state.connected
       ? '未连接本地服务 · 请打开设置'
@@ -303,7 +242,6 @@ postToBackground({ kind: 'get-state' });
 
 sessionSelect.addEventListener('change', () => {
   selectedSessionId = sessionSelect.value;
-  if (latestState) renderApprovalHistory(latestState.approvalHistory, selectedSessionId);
 });
 
 document.getElementById('open-options')!.addEventListener('click', () => {

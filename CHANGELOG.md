@@ -4,6 +4,14 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### 移除
+
+- 移除侧边栏「审批历史 · 当前终端」：daemon 不再记录与回放审批历史，协议删除
+  `approval_history` 消息。审批决策仍写入本地审计日志（`~/.bastion-pilot/audit/`），
+  终端操作在堡垒机侧同样有完整录像。
+
 ## [0.2.2-no-remote-ai] - 2026-11-15
 
 无远程 AI 服务商系列的首个版本，基于上游 0.2.2 重建。扩展内没有 AI 服务商配置、API Key

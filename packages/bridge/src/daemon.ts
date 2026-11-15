@@ -10,14 +10,13 @@ import {
   parseClientMessage,
   toolSchema,
   ProviderConfigSchema,
-  type ApprovalHistoryEntry,
   type ClientMessage,
   type SessionInfo,
 } from '@bastion-pilot/protocol';
 import { configPaths, loadConfig, resolveHome, saveConfig } from './config.js';
 import { AuditLogger } from './audit.js';
 import { OutputStore } from './outputStore.js';
-import { ApprovalEngine } from './approval.js';
+import { ApprovalEngine, type ApprovalSource } from './approval.js';
 import { renderToolResult } from './render.js';
 import { ChatManager } from './chatManager.js';
 import { FileTransfer, type CommandResultLike, type ReadResultLike } from './fileTransfer.js';
@@ -54,6 +53,16 @@ export interface DaemonHandle {
 const PING_INTERVAL_MS = 20_000;
 const PONG_TIMEOUT_MS = 65_000;
 
+/** An approval request awaiting a user decision; no history is kept after it is decided. */
+interface ApprovalRecord {
+  requestId: string;
+  source: ApprovalSource;
+  tool: string;
+  sessionId?: string;
+  summary: string;
+  requestedAt: number;
+}
+
 /**
  * The BastionPilot daemon: a localhost-only WebSocket hub that sits between
  * brains (MCP server process / built-in chat) and the browser extension.
@@ -89,10 +98,9 @@ export async function startDaemon(opts: DaemonOptions = {}): Promise<DaemonHandl
       {
         resolve: (ok: boolean) => void;
         timer: NodeJS.Timeout;
-        request: Omit<ApprovalHistoryEntry, 'decision' | 'decidedAt'>;
+        request: ApprovalRecord;
       }
     >(),
-    approvalHistory: [] as ApprovalHistoryEntry[],
   };
 
   const sendTo = (conn: Conn, type: string, payload: unknown) => {
@@ -103,30 +111,15 @@ export async function startDaemon(opts: DaemonOptions = {}): Promise<DaemonHandl
 
   const extensionConns = () => [...state.conns.values()].filter((c) => c.role === 'extension');
 
-  const sendApprovalHistory = (conn: Conn) => {
-    sendTo(conn, 'approval_history', { entries: state.approvalHistory });
-  };
-
-  const broadcastApprovalHistory = () => {
-    for (const ext of extensionConns()) sendApprovalHistory(ext);
-  };
-
   const finishApproval = (
     requestId: string,
-    decision: ApprovalHistoryEntry['decision']
+    decision: 'approved' | 'denied' | 'expired'
   ): boolean => {
     const pending = state.approvals.get(requestId);
     if (!pending) return false;
     state.approvals.delete(requestId);
     clearTimeout(pending.timer);
     pending.resolve(decision === 'approved');
-    state.approvalHistory.unshift({
-      ...pending.request,
-      decision,
-      decidedAt: Date.now(),
-    });
-    if (state.approvalHistory.length > 100) state.approvalHistory.length = 100;
-    broadcastApprovalHistory();
     return true;
   };
 
@@ -624,7 +617,6 @@ export async function startDaemon(opts: DaemonOptions = {}): Promise<DaemonHandl
         });
         if (conn.role === 'extension') {
           sendTo(conn, 'agent_status', agentStatus());
-          sendApprovalHistory(conn);
         } else {
           broadcastAgentStatus();
         }

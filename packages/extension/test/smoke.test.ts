@@ -126,7 +126,7 @@ describe('extension removal smoke', () => {
       /id="(input|send-btn|abort-btn|chat-mode|agent-select|new-chat)"|<textarea/
     );
     expect(html).toContain('id="approvals"');
-    expect(html).toContain('id="approval-history"');
+    expect(html).not.toContain('id="approval-history"');
     expect(html).toContain('id="activity"');
     expect(html).toContain('id="mode-status"');
     expect(html).toContain('panel-footer');
@@ -138,10 +138,6 @@ describe('extension removal smoke', () => {
     expect(source).not.toMatch(/case ['"]agent-message['"]/);
     expect(source).toMatch(/daemon\.send\(\s*['"]approval_response['"]/);
     expect(source).toMatch(/daemon\.send\(\s*['"]shared_context_get['"]/);
-    expect(source).toContain("case 'approval_history'");
-
-    const panel = readSource('sidepanel/main.ts');
-    expect(panel).toContain('renderApprovalHistory');
-    expect(panel).toContain('entry.sessionId === sessionId');
+    expect(source).not.toContain("case 'approval_history'");
   });
 });
