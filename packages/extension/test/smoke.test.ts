@@ -132,12 +132,19 @@ describe('extension removal smoke', () => {
     expect(html).toContain('panel-footer');
   });
 
-  it('keeps approval and shared-context reads while dropping panel chat sends', () => {
+  it('keeps approvals and live shared context while dropping panel chat and history', () => {
     const source = readSource('background/service-worker.ts');
     expect(source).not.toMatch(/daemon\.send\(\s*['"]chat_(new|message|abort)['"]/);
     expect(source).not.toMatch(/case ['"]agent-message['"]/);
     expect(source).toMatch(/daemon\.send\(\s*['"]approval_response['"]/);
-    expect(source).toMatch(/daemon\.send\(\s*['"]shared_context_get['"]/);
+    expect(source).not.toMatch(/case ['"]get-shared-context['"]/);
     expect(source).not.toContain("case 'approval_history'");
+
+    // The panel is session-only: it renders live shared-context events and
+    // never replays history, so closing it clears the transcript.
+    const panel = readSource('sidepanel/main.ts');
+    expect(panel).toContain("case 'shared_context_event'");
+    expect(panel).not.toContain('get-shared-context');
+    expect(panel).not.toContain('shared_context_replay');
   });
 });

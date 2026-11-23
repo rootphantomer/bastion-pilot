@@ -419,13 +419,10 @@ chrome.runtime.onConnect.addListener((port) => {
   if (port.name === 'panel') {
     panelPorts.add(port);
     port.onMessage.addListener(
-      (msg: { kind?: string; requestId?: string; limit?: number; approved?: boolean }) => {
+      (msg: { kind?: string; requestId?: string; approved?: boolean }) => {
         switch (msg.kind) {
-          case 'get-shared-context':
-            daemon.send('shared_context_get', {
-              limit: msg.limit ?? 50,
-            });
-            break;
+          // The panel keeps no history: it never replays shared context, so
+          // closing it clears the visible transcript.
           case 'approval-response':
             if (msg.requestId) {
               pendingApprovals.delete(msg.requestId);

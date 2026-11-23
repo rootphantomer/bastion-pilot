@@ -6,7 +6,16 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### 变更
+
+- 侧边栏不再回放共享上下文历史：关闭侧边栏即清空消息列表，重新打开从空白开始，只显示打开期间
+  本地 Agent 的实时消息。共享上下文仍完整保存在 `~/.bastion-pilot/shared-context.json`，
+  MCP 侧 `get_shared_context` / `append_shared_context` 不受影响。
+
 ### 移除
+
+- 面板协议移除 `get-shared-context`（面板端口）请求：扩展不再向 daemon 索取
+  `shared_context_replay` 回放。
 
 - 移除侧边栏「审批历史 · 当前终端」：daemon 不再记录与回放审批历史，协议删除
   `approval_history` 消息。审批决策仍写入本地审计日志（`~/.bastion-pilot/audit/`），

@@ -2,6 +2,10 @@
  * Side panel: approval and shared-context monitor. All state lives in the
  * daemon; this file renders approvals and read-only agent context over the
  * 'panel' port.
+ *
+ * The transcript is deliberately session-only: it is never persisted nor
+ * replayed, so closing the panel clears the visible history. Shared context
+ * stays on disk for MCP clients; reopen the panel to start from an empty feed.
  */
 
 interface StateMessage {
@@ -43,8 +47,6 @@ const activityEl = document.getElementById('activity')!;
 const activityText = document.getElementById('activity-text')!;
 
 let agentConnected = false;
-let sharedReplayRendered = false;
-let replayRequested = false;
 let selectedSessionId = '';
 
 function postToBackground(message: unknown) {
@@ -176,11 +178,6 @@ function renderState(state: StateMessage) {
     state.approvals.length > 0
   );
 
-  if (state.connected && !replayRequested) {
-    replayRequested = true;
-    postToBackground({ kind: 'get-shared-context', limit: 50 });
-  }
-
   const hookHint = document.getElementById('hook-hint');
   if (hookHint) {
     hookHint.classList.toggle('hidden', !(state.connected && state.sessions.length === 0));
@@ -197,29 +194,6 @@ function handleChatEvent(message: ChatEventMessage['message']) {
         removeEmptyHint();
         addSharedAgentMessage(entry.role ?? 'note', entry.content);
       }
-      break;
-    }
-    case 'shared_context_replay': {
-      if (sharedReplayRendered) break;
-      sharedReplayRendered = true;
-      const entries = (payload.entries ?? []) as Array<{
-        source?: string;
-        role?: string;
-        content?: string;
-        chatId?: string;
-      }>;
-      let rendered = 0;
-      for (const entry of entries) {
-        if (!entry.content || entry.source === 'agent') continue;
-        if (entry.source === 'panel' && entry.role === 'user' && !entry.chatId) {
-          addSharedAgentMessage('user', entry.content);
-          rendered += 1;
-        } else if (entry.source === 'mcp') {
-          addSharedAgentMessage(entry.role ?? 'note', entry.content);
-          rendered += 1;
-        }
-      }
-      if (rendered > 0) removeEmptyHint();
       break;
     }
     case 'error':
