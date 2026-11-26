@@ -153,20 +153,20 @@ approval and audit path.
 
 `~/.bastion-pilot/config.json` (created by `bastion-pilot init`):
 
-| Key                          | Default   | Meaning                                                                |
-| ---------------------------- | --------- | ---------------------------------------------------------------------- |
-| `server.port`                | `8765`    | daemon listen port (always bound to `127.0.0.1`)                       |
-| `security.token`             | generated | pairing token for the extension & MCP server                           |
-| `approval.mode`              | `confirm` | `auto` / `confirm` / `readonly`                                        |
-| `approval.requireUserApproval` | `true` | every command, keystroke and file operation needs an explicit panel approval |
-| `approval.confirmTimeoutMs`  | `120000`  | unanswered approvals are denied after this                             |
-| `approval.readonlyAllowlist` | `[]`      | regex list; in `readonly` mode matching commands are allowed           |
-| `providers[]`                | `[]`      | daemon built-in chat providers (not exposed by the extension)          |
-| `activeProviderId`           | `null`    | provider used by the daemon's built-in loop                            |
-| `agent.maxIterations`        | `30`      | loop cap for the daemon built-in agent                                 |
-| `agent.systemPrompt`         | built-in  | replace the daemon's default safety-first prompt                       |
-| `output.maxInlineChars`      | `6000`    | larger outputs are truncated + saved to a file                         |
-| `transcripts.enabled`        | `true`    | per-session terminal transcripts under `~/.bastion-pilot/transcripts/` |
+| Key                            | Default   | Meaning                                                                      |
+| ------------------------------ | --------- | ---------------------------------------------------------------------------- |
+| `server.port`                  | `8765`    | daemon listen port (always bound to `127.0.0.1`)                             |
+| `security.token`               | generated | pairing token for the extension & MCP server                                 |
+| `approval.mode`                | `confirm` | `auto` / `confirm` / `readonly`                                              |
+| `approval.requireUserApproval` | `true`    | every command, keystroke and file operation needs an explicit panel approval |
+| `approval.confirmTimeoutMs`    | `120000`  | unanswered approvals are denied after this                                   |
+| `approval.readonlyAllowlist`   | `[]`      | regex list; in `readonly` mode matching commands are allowed                 |
+| `providers[]`                  | `[]`      | daemon built-in chat providers (not exposed by the extension)                |
+| `activeProviderId`             | `null`    | provider used by the daemon's built-in loop                                  |
+| `agent.maxIterations`          | `30`      | loop cap for the daemon built-in agent                                       |
+| `agent.systemPrompt`           | built-in  | replace the daemon's default safety-first prompt                             |
+| `output.maxInlineChars`        | `6000`    | larger outputs are truncated + saved to a file                               |
+| `transcripts.enabled`          | `true`    | per-session terminal transcripts under `~/.bastion-pilot/transcripts/`       |
 
 Extension-side settings (options page): daemon URL, pairing token, granted origins and the site
 profile per origin (`generic-xterm` / `jumpserver` / `anheng-mingyu`). The extension stores no

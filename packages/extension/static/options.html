@@ -19,7 +19,8 @@
       <section>
         <h2><span>01</span> 本地服务</h2>
         <p class="hint">
-          在本机运行 <code>bastion-pilot daemon</code>，再粘贴 <code>bastion-pilot init</code> 输出的配对令牌。
+          在本机运行 <code>bastion-pilot daemon</code>，再粘贴
+          <code>bastion-pilot init</code> 输出的配对令牌。
         </p>
         <label>
           服务地址
@@ -69,19 +70,27 @@
         <p class="hint">
           审批与审计由本地服务统一控制。默认严格模式会在每条终端命令、按键和文件操作前
           显示审批卡片；未批准或超时都会拒绝执行。高级用户可在
-          <code>~/.bastion-pilot/config.json</code> 中显式关闭 <code>approval.requireUserApproval</code>。
+          <code>~/.bastion-pilot/config.json</code> 中显式关闭
+          <code>approval.requireUserApproval</code>。
         </p>
       </section>
 
       <section class="agent-card">
         <h2><span>05</span> 本地 Agent 与会话</h2>
-        <p class="hint">Claude Code、Codex 等本地 Agent 可以通过 MCP 使用同一个终端、审批和审计链路，并通过共享上下文工具与侧边栏继续同一项工作。</p>
+        <p class="hint">
+          Claude Code、Codex 等本地 Agent 可以通过 MCP
+          使用同一个终端、审批和审计链路，并通过共享上下文工具与侧边栏继续同一项工作。
+        </p>
         <div class="agent-steps">
           <code>bastion-pilot mcp</code>
           <span>→</span>
           <span>在 Agent 的 MCP 配置中指向上面的命令</span>
         </div>
-        <p class="hint">共享上下文保存在 <code>~/.bastion-pilot/shared-context.json</code>。本地 Agent 通过 MCP 连接后会出现在侧边栏，可选择具体 Codex/Claude Code 对话；Agent 用 <code>get_shared_context</code> 读取、用 <code>append_shared_context</code> 写回。</p>
+        <p class="hint">
+          共享上下文保存在 <code>~/.bastion-pilot/shared-context.json</code>。本地 Agent 通过 MCP
+          连接后会出现在侧边栏，可选择具体 Codex/Claude Code 对话；Agent 用
+          <code>get_shared_context</code> 读取、用 <code>append_shared_context</code> 写回。
+        </p>
       </section>
     </main>
 

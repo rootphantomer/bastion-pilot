@@ -1,63 +1,84 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
-<head>
-<meta charset="UTF-8">
-<title>云盾堡垒机 - 运维终端</title>
-<link rel="stylesheet" href="assets/mock.css">
-<style>#terminal-container{height:100%}</style>
-</head>
-<body>
-<!-- BastionPilot mock · profile: aliyun-bastionhost · terminalDomHints: .xterm, .xterm-screen, #terminal-container -->
-<section class="mock-login" id="login" style="background:linear-gradient(135deg,#2b1a05,#4a2c0a)">
-  <form onsubmit="return doLogin(event)">
-    <h2>阿里云 · 云盾堡垒机</h2>
-    <div class="sub">aliyun-bastionhost profile — Bastionhost Web 运维终端风格</div>
-    <label>用户名</label><input id="lu" value="admin">
-    <label>密码</label><input id="lp" type="password" value="mock">
-    <button style="background:#ff6a00">登 录</button>
-    <div class="hint">这是 BastionPilot 的本地模拟页面（不需要真实堡垒机）。任意凭据可登录，
-    登录后会出现 xterm.js 模拟终端，用于验证扩展的会话识别与终端交互。</div>
-  </form>
-</section>
+  <head>
+    <meta charset="UTF-8" />
+    <title>云盾堡垒机 - 运维终端</title>
+    <link rel="stylesheet" href="assets/mock.css" />
+    <style>
+      #terminal-container {
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- BastionPilot mock · profile: aliyun-bastionhost · terminalDomHints: .xterm, .xterm-screen, #terminal-container -->
+    <section
+      class="mock-login"
+      id="login"
+      style="background: linear-gradient(135deg, #2b1a05, #4a2c0a)"
+    >
+      <form onsubmit="return doLogin(event)">
+        <h2>阿里云 · 云盾堡垒机</h2>
+        <div class="sub">aliyun-bastionhost profile — Bastionhost Web 运维终端风格</div>
+        <label>用户名</label><input id="lu" value="admin" /> <label>密码</label
+        ><input id="lp" type="password" value="mock" />
+        <button style="background: #ff6a00">登 录</button>
+        <div class="hint">
+          这是 BastionPilot 的本地模拟页面（不需要真实堡垒机）。任意凭据可登录， 登录后会出现
+          xterm.js 模拟终端，用于验证扩展的会话识别与终端交互。
+        </div>
+      </form>
+    </section>
 
-<div class="mock-layout" id="term-page" style="display:none">
-
-  <div class="mock-sidebar" style="background:#241604">
-    <h1>云盾堡垒机</h1>
-    <div style="font-size:11px;color:#a58a5e;margin:6px 0">资产运维</div>
-    <div class="asset active">🖥 web-01 · SSH · 已授权</div>
-    <div class="asset">🖥 db-01 · SSH · 已授权</div>
-    <div style="font-size:11px;color:#a58a5e;margin:14px 0 6px">我的会话</div>
-    <div class="asset active">Bastion #BH-8841 · web-01</div>
-  </div>
-  <div class="mock-main">
-    <div class="mock-topbar" style="background:#241604;color:#ffe0c2;border-bottom:1px solid #3d2a10"><b style='color:#ff9142'>云盾堡垒机</b>（Bastionhost） — 会话 BH-8841 · 运维用户 admin · 资产 web-01</div>
-    <div class="mock-terminal-wrap">
-      <div id="terminal-container" class=""></div>
-      <div class="mock-badge">profile: aliyun-bastionhost</div>
+    <div class="mock-layout" id="term-page" style="display: none">
+      <div class="mock-sidebar" style="background: #241604">
+        <h1>云盾堡垒机</h1>
+        <div style="font-size: 11px; color: #a58a5e; margin: 6px 0">资产运维</div>
+        <div class="asset active">🖥 web-01 · SSH · 已授权</div>
+        <div class="asset">🖥 db-01 · SSH · 已授权</div>
+        <div style="font-size: 11px; color: #a58a5e; margin: 14px 0 6px">我的会话</div>
+        <div class="asset active">Bastion #BH-8841 · web-01</div>
+      </div>
+      <div class="mock-main">
+        <div
+          class="mock-topbar"
+          style="background: #241604; color: #ffe0c2; border-bottom: 1px solid #3d2a10"
+        >
+          <b style="color: #ff9142">云盾堡垒机</b>（Bastionhost） — 会话 BH-8841 · 运维用户 admin ·
+          资产 web-01
+        </div>
+        <div class="mock-terminal-wrap">
+          <div id="terminal-container" class=""></div>
+          <div class="mock-badge">profile: aliyun-bastionhost</div>
+        </div>
+      </div>
     </div>
-  </div>
-</div>
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/css/xterm.min.css">
-<script src="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/lib/xterm.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@xterm/addon-fit@0.10.0/lib/addon-fit.min.js"></script>
-<script>
-window.MOCK_CFG = { ws: true,
-  el: '#terminal-container',
-  prompt: 'root@web-01:~# ',
-  hostname: 'web-01',
-  banner: '阿里云云盾堡垒机 · 已接入资产 web-01（10.0.0.11）',
-  welcomeNote: '会话已开始录像，用于安全审计（mock）。'
-};
-function doLogin(e) {
-  e.preventDefault();
-  document.getElementById('login').style.display = 'none';
-  document.getElementById('term-page').style.display = 'flex';
-  setTimeout(() => { window.dispatchEvent(new Event('resize')); }, 50);
-  return false;
-}
-</script>
-<script src="assets/mock-terminal.js"></script>
-</body>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/css/xterm.min.css"
+    />
+    <script src="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/lib/xterm.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@xterm/addon-fit@0.10.0/lib/addon-fit.min.js"></script>
+    <script>
+      window.MOCK_CFG = {
+        ws: true,
+        el: '#terminal-container',
+        prompt: 'root@web-01:~# ',
+        hostname: 'web-01',
+        banner: '阿里云云盾堡垒机 · 已接入资产 web-01（10.0.0.11）',
+        welcomeNote: '会话已开始录像，用于安全审计（mock）。',
+      };
+      function doLogin(e) {
+        e.preventDefault();
+        document.getElementById('login').style.display = 'none';
+        document.getElementById('term-page').style.display = 'flex';
+        setTimeout(() => {
+          window.dispatchEvent(new Event('resize'));
+        }, 50);
+        return false;
+      }
+    </script>
+    <script src="assets/mock-terminal.js"></script>
+  </body>
 </html>

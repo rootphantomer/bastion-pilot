@@ -26,7 +26,9 @@ import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
 import { encodePty } from './gb18030.mjs';
 
-const require = createRequire(path.join(fileURLToPath(import.meta.url), '..', '..', 'packages', 'bridge', 'package.json'));
+const require = createRequire(
+  path.join(fileURLToPath(import.meta.url), '..', '..', 'packages', 'bridge', 'package.json')
+);
 const { WebSocketServer } = require('ws');
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
@@ -47,7 +49,11 @@ const server = http.createServer((req, res) => {
   if (urlPath === '/' && PRODUCT) urlPath = `/${PRODUCT}.html`;
   if (urlPath === '/') urlPath = '/index.html';
   const file = path.join(ROOT, path.normalize(urlPath).replace(/^([/\\])+/, ''));
-  if (!file.startsWith(ROOT)) { res.writeHead(403); res.end(); return; }
+  if (!file.startsWith(ROOT)) {
+    res.writeHead(403);
+    res.end();
+    return;
+  }
   if (!fs.existsSync(file) || !fs.statSync(file).isFile()) {
     res.writeHead(404, { 'content-type': 'text/plain; charset=utf-8' });
     res.end('not found: ' + urlPath);
@@ -61,7 +67,23 @@ const server = http.createServer((req, res) => {
 
 /* ---------------- fake PTY ---------------- */
 
-const DIR_NAMES = new Set(['bin', 'boot', 'dev', 'etc', 'home', 'opt', 'proc', 'root', 'ssh', 'tmp', 'usr', 'var', 'app', 'backup', 'scripts']);
+const DIR_NAMES = new Set([
+  'bin',
+  'boot',
+  'dev',
+  'etc',
+  'home',
+  'opt',
+  'proc',
+  'root',
+  'ssh',
+  'tmp',
+  'usr',
+  'var',
+  'app',
+  'backup',
+  'scripts',
+]);
 
 function makeShell(query) {
   const host = query.get('host') || 'web-01';
@@ -69,7 +91,10 @@ function makeShell(query) {
   const banner = query.get('banner') || '';
   const note = query.get('note') || '';
   const state = {
-    host, prompt, banner, note,
+    host,
+    prompt,
+    banner,
+    note,
     line: '',
     hist: [],
     histIdx: 0,
@@ -79,9 +104,15 @@ function makeShell(query) {
   };
 
   const out = [];
-  function w(s) { out.push(s); }
-  function nl() { out.push('\r\n'); }
-  function ps1() { w(state.prompt); }
+  function w(s) {
+    out.push(s);
+  }
+  function nl() {
+    out.push('\r\n');
+  }
+  function ps1() {
+    w(state.prompt);
+  }
 
   const FS = {
     '~': ['deploy.log', 'monitor.sh', 'notes.txt'],
@@ -121,11 +152,16 @@ function makeShell(query) {
 
   const commands = {
     help() {
-      w('Mock shell — 可用命令：'); nl();
-      w('  help  ls  pwd  whoami  id  hostname  uname  date  uptime  df  free'); nl();
-      w('  echo  printf  cat  tail  history  clear  true  false  exit'); nl();
-      w('  支持 cmd1 && cmd2 / cmd1 ; cmd2 串联、$? 退出码展开、括号粘贴与 printf 转义。'); nl();
-      w('所有输出均为 mock 数据，中文用于验证 GB18030 编码。'); nl();
+      w('Mock shell — 可用命令：');
+      nl();
+      w('  help  ls  pwd  whoami  id  hostname  uname  date  uptime  df  free');
+      nl();
+      w('  echo  printf  cat  tail  history  clear  true  false  exit');
+      nl();
+      w('  支持 cmd1 && cmd2 / cmd1 ; cmd2 串联、$? 退出码展开、括号粘贴与 printf 转义。');
+      nl();
+      w('所有输出均为 mock 数据，中文用于验证 GB18030 编码。');
+      nl();
       return 0;
     },
     ls(args) {
@@ -135,59 +171,107 @@ function makeShell(query) {
       const target = raw === '.' ? state.cwd : raw;
       const items = FS[target];
       if (!items) {
-        w(`ls: cannot access '${raw}': No such file or directory`); nl();
+        w(`ls: cannot access '${raw}': No such file or directory`);
+        nl();
         return 2;
       }
       if (flags.some((f) => f.includes('l'))) {
-        w(`total ${items.length * 4}`); nl();
+        w(`total ${items.length * 4}`);
+        nl();
         for (const name of items) {
           const isDir = DIR_NAMES.has(name);
           const size = isDir ? 4096 : 512 + name.length * 137;
-          w(`${isDir ? 'drwxr-xr-x' : '-rw-r--r--'} 1 root root ${String(size).padStart(6)} Oct  6 09:12 ${name}`); nl();
+          w(
+            `${isDir ? 'drwxr-xr-x' : '-rw-r--r--'} 1 root root ${String(size).padStart(6)} Oct  6 09:12 ${name}`
+          );
+          nl();
         }
         return 0;
       }
-      w(items.join('  ')); nl();
+      w(items.join('  '));
+      nl();
       return 0;
     },
-    pwd() { w(state.cwd === '~' ? '/root' : state.cwd); nl(); return 0; },
-    whoami() { w('root'); nl(); return 0; },
-    id() { w('uid=0(root) gid=0(root) groups=0(root)'); nl(); return 0; },
-    hostname() { w(state.host); nl(); return 0; },
+    pwd() {
+      w(state.cwd === '~' ? '/root' : state.cwd);
+      nl();
+      return 0;
+    },
+    whoami() {
+      w('root');
+      nl();
+      return 0;
+    },
+    id() {
+      w('uid=0(root) gid=0(root) groups=0(root)');
+      nl();
+      return 0;
+    },
+    hostname() {
+      w(state.host);
+      nl();
+      return 0;
+    },
     uname(args) {
       if (args[0] === '-a') {
-        w(`Linux ${state.host} 4.19.91-27.1.an8.x86_64 #1 SMP mock Mon Oct 6 10:00:00 UTC 2025 x86_64 GNU/Linux`); nl();
-      } else w('Linux'), nl();
+        w(
+          `Linux ${state.host} 4.19.91-27.1.an8.x86_64 #1 SMP mock Mon Oct 6 10:00:00 UTC 2025 x86_64 GNU/Linux`
+        );
+        nl();
+      } else (w('Linux'), nl());
       return 0;
     },
-    date() { w(new Date().toString()); nl(); return 0; },
+    date() {
+      w(new Date().toString());
+      nl();
+      return 0;
+    },
     uptime() {
-      w(` ${new Date().toTimeString().slice(0, 8)} up 32 days,  4:12,  2 users,  load average: 0.15, 0.10, 0.05`); nl();
+      w(
+        ` ${new Date().toTimeString().slice(0, 8)} up 32 days,  4:12,  2 users,  load average: 0.15, 0.10, 0.05`
+      );
+      nl();
       return 0;
     },
     df(args) {
       if (args[0] !== '-h') {
-        w('Filesystem     1K-blocks     Used Available Use% Mounted on'); nl();
-        w('/dev/vda1       41922540 24117248 17805292  58% /'); nl();
+        w('Filesystem     1K-blocks     Used Available Use% Mounted on');
+        nl();
+        w('/dev/vda1       41922540 24117248 17805292  58% /');
+        nl();
         return 0;
       }
-      w('Filesystem      Size  Used Avail Use% Mounted on'); nl();
-      w('devtmpfs        3.8G     0  3.8G   0% /dev'); nl();
-      w('/dev/vda1        40G   23G   17G  58% /'); nl();
-      w('tmpfs           7.6G     0  7.6G   0% /dev/shm'); nl();
+      w('Filesystem      Size  Used Avail Use% Mounted on');
+      nl();
+      w('devtmpfs        3.8G     0  3.8G   0% /dev');
+      nl();
+      w('/dev/vda1        40G   23G   17G  58% /');
+      nl();
+      w('tmpfs           7.6G     0  7.6G   0% /dev/shm');
+      nl();
       return 0;
     },
     free(args) {
       const m = args[0] === '-m';
-      w('              total        used        free      shared  buff/cache   available'); nl();
-      w(m ? 'Mem:           7809        2314        3105         128        2390        5121'
-        : 'Mem:            7.9Gi       2.3Gi       3.0Gi       125Mi       2.3Gi       5.0Gi'); nl();
-      w(m ? 'Swap:          2047           0        2047'
-        : 'Swap:           2.0Gi          0B       2.0Gi'); nl();
+      w('              total        used        free      shared  buff/cache   available');
+      nl();
+      w(
+        m
+          ? 'Mem:           7809        2314        3105         128        2390        5121'
+          : 'Mem:            7.9Gi       2.3Gi       3.0Gi       125Mi       2.3Gi       5.0Gi'
+      );
+      nl();
+      w(
+        m
+          ? 'Swap:          2047           0        2047'
+          : 'Swap:           2.0Gi          0B       2.0Gi'
+      );
+      nl();
       return 0;
     },
     echo(args) {
-      w(argsOf(args).join(' ')); nl();
+      w(argsOf(args).join(' '));
+      nl();
       return 0;
     },
     /**
@@ -195,7 +279,11 @@ function makeShell(query) {
      * 扩展的隐藏哨兵依赖 `printf '\033[1A\033[2K\033___BP_x_%s__\033\\' $?`。
      */
     printf(args) {
-      if (args.length === 0) { w('printf: usage: printf format [arguments]'); nl(); return 1; }
+      if (args.length === 0) {
+        w('printf: usage: printf format [arguments]');
+        nl();
+        return 1;
+      }
       const fmt = unquote(args[0]);
       const rest = argsOf(args.slice(1));
       let text = '';
@@ -222,55 +310,108 @@ function makeShell(query) {
           } else text += esc;
         } else if (ch === '%') {
           const spec = fmt[i + 1];
-          if (spec === '%') { text += '%'; i += 1; }
-          else if (spec === 's') { text += rest[argIndex++] ?? ''; i += 1; }
-          else if (spec === 'd') { text += String(Number.parseInt(rest[argIndex++] ?? '0', 10) || 0); i += 1; }
-          else text += '%';
+          if (spec === '%') {
+            text += '%';
+            i += 1;
+          } else if (spec === 's') {
+            text += rest[argIndex++] ?? '';
+            i += 1;
+          } else if (spec === 'd') {
+            text += String(Number.parseInt(rest[argIndex++] ?? '0', 10) || 0);
+            i += 1;
+          } else text += '%';
         } else text += ch;
       }
       w(text.replace(/\r?\n/g, '\r\n')); // 模拟 PTY 的 ONLCR
       return 0;
     },
-    true() { return 0; },
-    false() { return 1; },
+    true() {
+      return 0;
+    },
+    false() {
+      return 1;
+    },
     cat(args) {
-      if (!args[0]) { w('cat: missing operand'); nl(); return 1; }
+      if (!args[0]) {
+        w('cat: missing operand');
+        nl();
+        return 1;
+      }
       const name = unquote(args[0]);
       if (name === '/etc/hosts') {
-        w('127.0.0.1   localhost localhost.localdomain'); nl();
-        w(`10.0.0.11   ${state.host}`); nl();
+        w('127.0.0.1   localhost localhost.localdomain');
+        nl();
+        w(`10.0.0.11   ${state.host}`);
+        nl();
         return 0;
       }
-      if (name === '/etc/hostname') { w(state.host); nl(); return 0; }
-      if (name === '/etc/system-release') { w('Anolis OS release 8.8 (mock)'); nl(); return 0; }
+      if (name === '/etc/hostname') {
+        w(state.host);
+        nl();
+        return 0;
+      }
+      if (name === '/etc/system-release') {
+        w('Anolis OS release 8.8 (mock)');
+        nl();
+        return 0;
+      }
       const lines = LOGS[name];
       if (lines) {
-        for (const line of lines) { w(line); nl(); }
+        for (const line of lines) {
+          w(line);
+          nl();
+        }
         return 0;
       }
-      w(`cat: ${name}: No such file or directory`); nl();
+      w(`cat: ${name}: No such file or directory`);
+      nl();
       return 1;
     },
     tail(args) {
       let count = 10;
       let file = '';
       for (let i = 0; i < args.length; i++) {
-        if (args[i] === '-n') { count = Number(args[i + 1]) || 10; i += 1; continue; }
+        if (args[i] === '-n') {
+          count = Number(args[i + 1]) || 10;
+          i += 1;
+          continue;
+        }
         if (args[i].startsWith('-')) continue;
         file = unquote(args[i]);
       }
-      if (!file) { w('tail: missing file operand'); nl(); return 1; }
+      if (!file) {
+        w('tail: missing file operand');
+        nl();
+        return 1;
+      }
       const lines = LOGS[file];
-      if (!lines) { w(`tail: cannot open '${file}' for reading: No such file or directory`); nl(); return 1; }
-      for (const line of lines.slice(-count)) { w(line); nl(); }
+      if (!lines) {
+        w(`tail: cannot open '${file}' for reading: No such file or directory`);
+        nl();
+        return 1;
+      }
+      for (const line of lines.slice(-count)) {
+        w(line);
+        nl();
+      }
       return 0;
     },
     history() {
       state.hist.forEach((c, i) => w(`  ${String(i + 1).padStart(4)}  ${c}\r\n`));
       return 0;
     },
-    clear() { w('\x1b[2J\x1b[H'); return 0; },
-    exit() { w('logout'); nl(); w(`Connection to ${state.host} closed.`); nl(); state.closed = true; return 0; },
+    clear() {
+      w('\x1b[2J\x1b[H');
+      return 0;
+    },
+    exit() {
+      w('logout');
+      nl();
+      w(`Connection to ${state.host} closed.`);
+      nl();
+      state.closed = true;
+      return 0;
+    },
   };
 
   function exec(raw) {
@@ -288,7 +429,11 @@ function makeShell(query) {
         const cmd = parts[0];
         const args = parts.slice(1);
         if (commands[cmd]) rc = commands[cmd](args) ?? 0;
-        else { w(`bash: ${cmd}: command not found`); nl(); rc = 127; }
+        else {
+          w(`bash: ${cmd}: command not found`);
+          nl();
+          rc = 127;
+        }
         if (rc !== 0) break;
       }
     }
@@ -302,8 +447,9 @@ function makeShell(query) {
 
   function historyMove(dir) {
     eraseChars(state.line.length);
-    if (dir === 'A') { if (state.histIdx > 0) state.histIdx -= 1; }
-    else if (state.histIdx < state.hist.length) state.histIdx += 1;
+    if (dir === 'A') {
+      if (state.histIdx > 0) state.histIdx -= 1;
+    } else if (state.histIdx < state.hist.length) state.histIdx += 1;
     state.line = state.hist[state.histIdx] ?? '';
     w(state.line);
   }
@@ -349,20 +495,29 @@ function makeShell(query) {
           exec(state.line);
           state.line = '';
           if (!state.closed) ps1();
-        } else if (ch === '\x7f' || ch === '\b') { // backspace
+        } else if (ch === '\x7f' || ch === '\b') {
+          // backspace
           if (state.line.length > 0) {
             state.line = state.line.slice(0, -1);
             w('\b \b');
           }
-        } else if (ch === '\x03') { // ctrl+c
-          w('^C'); nl();
+        } else if (ch === '\x03') {
+          // ctrl+c
+          w('^C');
+          nl();
           state.line = '';
           ps1();
-        } else if (ch === '\x15') { // ctrl+u
+        } else if (ch === '\x15') {
+          // ctrl+u
           eraseChars(state.line.length);
           state.line = '';
-        } else if (ch === '\x04') { // ctrl+d
-          if (state.line.length === 0) { w('logout'); nl(); state.closed = true; }
+        } else if (ch === '\x04') {
+          // ctrl+d
+          if (state.line.length === 0) {
+            w('logout');
+            nl();
+            state.closed = true;
+          }
         } else if (ch === '\x1b') {
           i = escapeEnd(data, i);
         } else if (ch >= ' ') {
@@ -382,7 +537,9 @@ function makeShell(query) {
       lines.push("Type 'help' for mock commands.");
       return lines.join('\r\n') + '\r\n' + state.prompt;
     },
-    closed() { return state.closed; },
+    closed() {
+      return state.closed;
+    },
   };
 }
 
@@ -414,7 +571,10 @@ wss.on('connection', (ws, req) => {
     const pieces = [];
     let prev = 0;
     for (const cut of cuts) {
-      if (cut > prev) { pieces.push(text.slice(prev, cut)); prev = cut; }
+      if (cut > prev) {
+        pieces.push(text.slice(prev, cut));
+        prev = cut;
+      }
     }
     return pieces;
   };
@@ -426,19 +586,32 @@ wss.on('connection', (ws, req) => {
     const pieces = splitFragments(text);
     let index = 0;
     const step = () => {
-      if (ws.readyState !== 1) { queue.length = 0; pumping = false; return; }
+      if (ws.readyState !== 1) {
+        queue.length = 0;
+        pumping = false;
+        return;
+      }
       ws.send(pieces[index]);
       index += 1;
       if (index < pieces.length) setTimeout(step, 12);
-      else { pumping = false; pump(); }
+      else {
+        pumping = false;
+        pump();
+      }
     };
     step();
   };
 
   const sendPty = (buf) => {
-    if (!guac) { ws.send(buf); return; }
+    if (!guac) {
+      ws.send(buf);
+      return;
+    }
     const instruction = wrapGuac(buf);
-    if (!frag) { ws.send(instruction); return; }
+    if (!frag) {
+      ws.send(instruction);
+      return;
+    }
     queue.push(instruction);
     pump();
   };
@@ -460,23 +633,49 @@ wss.on('connection', (ws, req) => {
         for (;;) {
           const rest = carry.slice(pos);
           const dot = rest.indexOf('.');
-          if (dot === -1 || dot > 12) { done = true; break; } // incomplete
+          if (dot === -1 || dot > 12) {
+            done = true;
+            break;
+          } // incomplete
           const len = Number(rest.slice(0, dot));
-          if (!Number.isSafeInteger(len) || len < 0 || len > 10_000_000) { malformed = true; break; }
-          if (rest.length < dot + 1 + len) { done = true; break; } // incomplete
+          if (!Number.isSafeInteger(len) || len < 0 || len > 10_000_000) {
+            malformed = true;
+            break;
+          }
+          if (rest.length < dot + 1 + len) {
+            done = true;
+            break;
+          } // incomplete
           elements.push(rest.slice(dot + 1, dot + 1 + len));
           pos += dot + 1 + len;
           const sep = carry[pos];
-          if (sep === ',') { pos += 1; continue; }
-          if (sep === ';') { pos += 1; break; }
-          if (sep === undefined) { done = true; break; }
-          malformed = true; break;
+          if (sep === ',') {
+            pos += 1;
+            continue;
+          }
+          if (sep === ';') {
+            pos += 1;
+            break;
+          }
+          if (sep === undefined) {
+            done = true;
+            break;
+          }
+          malformed = true;
+          break;
         }
-        if (malformed) { carry = carry.slice(pos + 1); continue; }
+        if (malformed) {
+          carry = carry.slice(pos + 1);
+          continue;
+        }
         if (done) break;
         carry = carry.slice(pos);
         if (elements[0] === 'tes' && elements[1]) {
-          try { payloads.push(Buffer.from(elements[1], 'base64')); } catch { /* skip */ }
+          try {
+            payloads.push(Buffer.from(elements[1], 'base64'));
+          } catch {
+            /* skip */
+          }
         }
         if (carry.length === 0) break;
       }

@@ -39,8 +39,8 @@ export class SharedContext {
         this.entries = parsed.filter((entry): entry is SharedContextEntry =>
           Boolean(
             entry &&
-            typeof entry === 'object' &&
-            typeof (entry as SharedContextEntry).content === 'string'
+              typeof entry === 'object' &&
+              typeof (entry as SharedContextEntry).content === 'string'
           )
         );
       }

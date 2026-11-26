@@ -1,64 +1,85 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
-<head>
-<meta charset="UTF-8">
-<title>JumpServer - Web 终端</title>
-<link rel="stylesheet" href="assets/mock.css">
-<style>#terminal{height:100%}</style>
-</head>
-<body>
-<!-- BastionPilot mock · profile: jumpserver · terminalDomHints: .xterm, .xterm-screen, #terminal, .term-output -->
-<section class="mock-login" id="login" style="background:linear-gradient(135deg,#0b1c30,#123a5c)">
-  <form onsubmit="return doLogin(event)">
-    <h2>JumpServer 运维平台</h2>
-    <div class="sub">jumpserver profile — koko web terminal 风格</div>
-    <label>用户名</label><input id="lu" value="admin">
-    <label>密码</label><input id="lp" type="password" value="mock">
-    <button style="background:#1a7f37">登 录</button>
-    <div class="hint">这是 BastionPilot 的本地模拟页面（不需要真实堡垒机）。任意凭据可登录，
-    登录后会出现 xterm.js 模拟终端，用于验证扩展的会话识别与终端交互。</div>
-  </form>
-</section>
+  <head>
+    <meta charset="UTF-8" />
+    <title>JumpServer - Web 终端</title>
+    <link rel="stylesheet" href="assets/mock.css" />
+    <style>
+      #terminal {
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- BastionPilot mock · profile: jumpserver · terminalDomHints: .xterm, .xterm-screen, #terminal, .term-output -->
+    <section
+      class="mock-login"
+      id="login"
+      style="background: linear-gradient(135deg, #0b1c30, #123a5c)"
+    >
+      <form onsubmit="return doLogin(event)">
+        <h2>JumpServer 运维平台</h2>
+        <div class="sub">jumpserver profile — koko web terminal 风格</div>
+        <label>用户名</label><input id="lu" value="admin" /> <label>密码</label
+        ><input id="lp" type="password" value="mock" />
+        <button style="background: #1a7f37">登 录</button>
+        <div class="hint">
+          这是 BastionPilot 的本地模拟页面（不需要真实堡垒机）。任意凭据可登录， 登录后会出现
+          xterm.js 模拟终端，用于验证扩展的会话识别与终端交互。
+        </div>
+      </form>
+    </section>
 
-<div class="mock-layout" id="term-page" style="display:none">
-
-  <div class="mock-sidebar">
-    <h1>JumpServer</h1>
-    <div style="font-size:11px;color:#5b6b7c;margin:6px 0">我的资产</div>
-    <div class="asset active">💻 web-01 (10.0.0.11)</div>
-    <div class="asset">💻 db-01 (10.0.0.12)</div>
-    <div class="asset">💻 cache-01 (10.0.0.13)</div>
-    <div style="font-size:11px;color:#5b6b7c;margin:14px 0 6px">会话</div>
-    <div class="asset active">SSH · web-01</div>
-  </div>
-  <div class="mock-main">
-    <div class="mock-topbar" style="background:#10151f;color:#c9d1d9;border-bottom:1px solid #21262d"><b style='color:#3fb950'>JumpServer</b> koko web terminal — 会话 #KOKO-20251006-001 · web-01</div>
-    <div class="mock-terminal-wrap">
-      <div id="terminal" class=""></div>
-      <div class="mock-badge">profile: jumpserver</div>
+    <div class="mock-layout" id="term-page" style="display: none">
+      <div class="mock-sidebar">
+        <h1>JumpServer</h1>
+        <div style="font-size: 11px; color: #5b6b7c; margin: 6px 0">我的资产</div>
+        <div class="asset active">💻 web-01 (10.0.0.11)</div>
+        <div class="asset">💻 db-01 (10.0.0.12)</div>
+        <div class="asset">💻 cache-01 (10.0.0.13)</div>
+        <div style="font-size: 11px; color: #5b6b7c; margin: 14px 0 6px">会话</div>
+        <div class="asset active">SSH · web-01</div>
+      </div>
+      <div class="mock-main">
+        <div
+          class="mock-topbar"
+          style="background: #10151f; color: #c9d1d9; border-bottom: 1px solid #21262d"
+        >
+          <b style="color: #3fb950">JumpServer</b> koko web terminal — 会话 #KOKO-20251006-001 ·
+          web-01
+        </div>
+        <div class="mock-terminal-wrap">
+          <div id="terminal" class=""></div>
+          <div class="mock-badge">profile: jumpserver</div>
+        </div>
+      </div>
     </div>
-  </div>
-</div>
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/css/xterm.min.css">
-<script src="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/lib/xterm.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@xterm/addon-fit@0.10.0/lib/addon-fit.min.js"></script>
-<script>
-window.MOCK_CFG = { ws: true,
-  el: '#terminal',
-  prompt: '[root@web-01 ~]# ',
-  hostname: 'web-01',
-  banner: 'Connecting to web-01 (10.0.0.11) ...',
-  welcomeNote: 'Last login: Mon Oct  6 10:00:00 2025 from 10.0.0.100'
-};
-function doLogin(e) {
-  e.preventDefault();
-  document.getElementById('login').style.display = 'none';
-  document.getElementById('term-page').style.display = 'flex';
-  setTimeout(() => { window.dispatchEvent(new Event('resize')); }, 50);
-  return false;
-}
-</script>
-<script src="assets/mock-terminal.js"></script>
-</body>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/css/xterm.min.css"
+    />
+    <script src="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/lib/xterm.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@xterm/addon-fit@0.10.0/lib/addon-fit.min.js"></script>
+    <script>
+      window.MOCK_CFG = {
+        ws: true,
+        el: '#terminal',
+        prompt: '[root@web-01 ~]# ',
+        hostname: 'web-01',
+        banner: 'Connecting to web-01 (10.0.0.11) ...',
+        welcomeNote: 'Last login: Mon Oct  6 10:00:00 2025 from 10.0.0.100',
+      };
+      function doLogin(e) {
+        e.preventDefault();
+        document.getElementById('login').style.display = 'none';
+        document.getElementById('term-page').style.display = 'flex';
+        setTimeout(() => {
+          window.dispatchEvent(new Event('resize'));
+        }, 50);
+        return false;
+      }
+    </script>
+    <script src="assets/mock-terminal.js"></script>
+  </body>
 </html>

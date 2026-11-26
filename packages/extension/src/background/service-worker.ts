@@ -422,42 +422,40 @@ chrome.runtime.onConnect.addListener((port) => {
   }
   if (port.name === 'panel') {
     panelPorts.add(port);
-    port.onMessage.addListener(
-      (msg: { kind?: string; requestId?: string; approved?: boolean }) => {
-        switch (msg.kind) {
-          // The panel keeps no history: it never replays shared context, so
-          // closing it clears the visible transcript.
-          case 'approval-response':
-            if (msg.requestId) {
-              pendingApprovals.delete(msg.requestId);
-              broadcastState();
-              daemon.send('approval_response', {
-                requestId: msg.requestId,
-                approved: msg.approved === true,
-              });
-            }
-            break;
-          case 'get-state':
+    port.onMessage.addListener((msg: { kind?: string; requestId?: string; approved?: boolean }) => {
+      switch (msg.kind) {
+        // The panel keeps no history: it never replays shared context, so
+        // closing it clears the visible transcript.
+        case 'approval-response':
+          if (msg.requestId) {
+            pendingApprovals.delete(msg.requestId);
             broadcastState();
-            try {
-              port.postMessage({
-                kind: 'state',
-                connected: daemon.connected,
-                agentConnected,
-                agentNames,
-                agents,
-                sessions: registry.list(),
-                approvals: [...pendingApprovals.values()],
-              });
-            } catch {
-              /* ignore */
-            }
-            break;
-          default:
-            break;
-        }
+            daemon.send('approval_response', {
+              requestId: msg.requestId,
+              approved: msg.approved === true,
+            });
+          }
+          break;
+        case 'get-state':
+          broadcastState();
+          try {
+            port.postMessage({
+              kind: 'state',
+              connected: daemon.connected,
+              agentConnected,
+              agentNames,
+              agents,
+              sessions: registry.list(),
+              approvals: [...pendingApprovals.values()],
+            });
+          } catch {
+            /* ignore */
+          }
+          break;
+        default:
+          break;
       }
-    );
+    });
     port.onDisconnect.addListener(() => {
       panelPorts.delete(port);
     });

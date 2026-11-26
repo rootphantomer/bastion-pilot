@@ -33,7 +33,10 @@ export function encodePty(text, encoding) {
   const bytes = [];
   for (const ch of text) {
     const code = ch.codePointAt(0);
-    if (code < 0x80) { bytes.push(code); continue; }
+    if (code < 0x80) {
+      bytes.push(code);
+      continue;
+    }
     const pair = map.get(ch);
     if (pair) bytes.push(pair[0], pair[1]);
     else bytes.push(0x3f);

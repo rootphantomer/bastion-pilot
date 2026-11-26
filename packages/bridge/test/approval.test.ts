@@ -79,9 +79,7 @@ describe('ApprovalEngine', () => {
   });
 
   it('approval cards receive the redline warning payload', async () => {
-    let captured:
-      | { summary: string; redline?: { title: string; details: string[] } }
-      | undefined;
+    let captured: { summary: string; redline?: { title: string; details: string[] } } | undefined;
     const e = engine('confirm', async (req) => {
       captured = req;
       return true;

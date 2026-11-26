@@ -202,7 +202,8 @@ function handleChatEvent(message: ChatEventMessage['message']) {
   switch (message.type) {
     case 'shared_context_event': {
       const entry = payload.entry as
-        { source?: string; role?: string; content?: string } | undefined;
+        | { source?: string; role?: string; content?: string }
+        | undefined;
       if (entry?.source === 'mcp' && entry.content) {
         removeEmptyHint();
         addSharedAgentMessage(entry.role ?? 'note', entry.content);

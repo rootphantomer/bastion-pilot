@@ -243,11 +243,7 @@ export class ChatManager {
     return providers.find((p) => p.id === id) ?? providers[0]!;
   }
 
-  private bindTargetSession(
-    session: ChatSession,
-    tool: string,
-    rawParams: unknown
-  ): unknown {
+  private bindTargetSession(session: ChatSession, tool: string, rawParams: unknown): unknown {
     if (!session.targetSessionId || tool === 'list_sessions') return rawParams;
     if (!rawParams || typeof rawParams !== 'object' || Array.isArray(rawParams)) return rawParams;
     // The panel's target is authoritative. The model may still call

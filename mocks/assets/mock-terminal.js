@@ -65,7 +65,9 @@
           try {
             var ch = probe.decode(new Uint8Array([hi, lo]));
             if (ch && ch !== '\ufffd' && table[ch] === undefined) table[ch] = [hi, lo];
-          } catch (e) { /* 非法双字节码位 */ }
+          } catch (e) {
+            /* 非法双字节码位 */
+          }
         }
       }
     } catch (e) {
@@ -82,8 +84,12 @@
     var bytes = [];
     for (var i = 0; i < text.length; i++) {
       var code = text.charCodeAt(i);
-      if (code < 0x80) { bytes.push(code); continue; }
-      if (code >= 0xd800 && code <= 0xdfff) { // 代理对：GB18030 四字节区，mock 用 '?' 占位
+      if (code < 0x80) {
+        bytes.push(code);
+        continue;
+      }
+      if (code >= 0xd800 && code <= 0xdfff) {
+        // 代理对：GB18030 四字节区，mock 用 '?' 占位
         bytes.push(0x3f);
         if (code <= 0xdbff) i += 1;
         continue;
@@ -112,7 +118,11 @@
 
     function decodePayload(b64) {
       var bytes;
-      try { bytes = base64ToBytes(b64); } catch (e) { return; }
+      try {
+        bytes = base64ToBytes(b64);
+      } catch (e) {
+        return;
+      }
       var decoder;
       if (encoding === 'gb18030') {
         gb = gb || tryTextDecoder('gb18030');
@@ -126,7 +136,11 @@
     }
 
     function tryTextDecoder(label) {
-      try { return new TextDecoder(label); } catch (e) { return null; }
+      try {
+        return new TextDecoder(label);
+      } catch (e) {
+        return null;
+      }
     }
 
     /** 从 carry 头部尽可能多地取完整指令；残缺时保留到下一帧。 */
@@ -140,19 +154,32 @@
           var dot = carry.indexOf('.', pos);
           if (dot === -1 || dot - pos > 10) break; // 不完整
           var len = Number(carry.slice(pos, dot));
-          if (!isFinite(len) || len < 0 || len > 10000000) { malformed = true; break; }
+          if (!isFinite(len) || len < 0 || len > 10000000) {
+            malformed = true;
+            break;
+          }
           var start = dot + 1;
           if (start + len > carry.length) break; // 不完整
           elements.push(carry.slice(start, start + len));
           pos = start + len;
           var sep = carry.charAt(pos);
-          if (sep === ',') { pos += 1; continue; }
-          if (sep === ';') { pos += 1; complete = true; break; }
+          if (sep === ',') {
+            pos += 1;
+            continue;
+          }
+          if (sep === ';') {
+            pos += 1;
+            complete = true;
+            break;
+          }
           if (sep === '') break; // 不完整
           malformed = true;
           break;
         }
-        if (malformed) { carry = carry.slice(Math.max(pos, 1)); continue; }
+        if (malformed) {
+          carry = carry.slice(Math.max(pos, 1));
+          continue;
+        }
         if (!complete) break;
         carry = carry.slice(pos);
         if (elements[0] === 'tes' && elements[1]) decodePayload(elements[1]);
@@ -197,7 +224,11 @@
     window.term = term; // 与常见产品页面一致：暴露 xterm 实例，便于 get_screen 读取真实屏幕
     function doFit() {
       if (!fit) return;
-      try { fit.fit(); } catch (e) { /* 容器尚未显示时忽略 */ }
+      try {
+        fit.fit();
+      } catch (e) {
+        /* 容器尚未显示时忽略 */
+      }
     }
     doFit();
     window.addEventListener('resize', doFit);
@@ -225,7 +256,11 @@
       state.state = name;
       state.message = message || '';
       if (typeof cfg.onStatus === 'function') {
-        try { cfg.onStatus(status()); } catch (e) { /* 页面回调异常不影响终端 */ }
+        try {
+          cfg.onStatus(status());
+        } catch (e) {
+          /* 页面回调异常不影响终端 */
+        }
       }
     }
 
@@ -249,7 +284,9 @@
         try {
           old.onclose = null;
           old.close();
-        } catch (e) { /* 已关闭 */ }
+        } catch (e) {
+          /* 已关闭 */
+        }
       }
       if (!silent) emit('closed', '已断开');
     }
@@ -277,9 +314,12 @@
       socket = ws;
 
       var bytesToText = new TextDecoder('utf-8');
-      var guacDown = settings.frame === 'guacamole'
-        ? createGuacDecoder(settings.encoding, function (text) { term.write(text); })
-        : null;
+      var guacDown =
+        settings.frame === 'guacamole'
+          ? createGuacDecoder(settings.encoding, function (text) {
+              term.write(text);
+            })
+          : null;
 
       ws.onopen = function () {
         if (socket !== ws) return;
@@ -288,7 +328,9 @@
       };
       ws.onmessage = function (ev) {
         if (settings.frame === 'guacamole') {
-          guacDown(typeof ev.data === 'string' ? ev.data : bytesToText.decode(new Uint8Array(ev.data)));
+          guacDown(
+            typeof ev.data === 'string' ? ev.data : bytesToText.decode(new Uint8Array(ev.data))
+          );
         } else {
           term.write(typeof ev.data === 'string' ? ev.data : new Uint8Array(ev.data));
         }
@@ -302,7 +344,9 @@
       ws.onerror = function () {
         if (socket !== ws) return;
         emit('error', 'WebSocket 连接失败');
-        term.write('\r\n\x1b[31m[mock] PTY 连接失败：请用 node mocks/server.mjs 启动（静态服务器无法提供 /ws）。\x1b[0m\r\n');
+        term.write(
+          '\r\n\x1b[31m[mock] PTY 连接失败：请用 node mocks/server.mjs 启动（静态服务器无法提供 /ws）。\x1b[0m\r\n'
+        );
       };
     }
 
@@ -323,7 +367,11 @@
     if (settings.ws) connect();
     else mountLocalShell(term, cfg);
     if (typeof cfg.onReady === 'function') {
-      try { cfg.onReady(api); } catch (e) { /* 页面回调异常不影响终端 */ }
+      try {
+        cfg.onReady(api);
+      } catch (e) {
+        /* 页面回调异常不影响终端 */
+      }
     }
     return api;
   }
@@ -338,8 +386,12 @@
     var buf = '';
     var lastExit = 0;
 
-    function write(s) { term.write(s); }
-    function println(s) { term.write(s + '\r\n'); }
+    function write(s) {
+      term.write(s);
+    }
+    function println(s) {
+      term.write(s + '\r\n');
+    }
 
     var table = {
       '~': ['deploy.log', 'monitor.sh', 'notes.txt'],
@@ -364,27 +416,57 @@
       ls: function (args) {
         var target = args[0] || '~';
         var items = fakeLs(target);
-        if (items == null) { println('ls: cannot access ' + JSON.stringify(target) + ': No such file or directory'); return 2; }
+        if (items == null) {
+          println('ls: cannot access ' + JSON.stringify(target) + ': No such file or directory');
+          return 2;
+        }
         println(items.join('  '));
         return 0;
       },
-      pwd: function () { println('/root'); return 0; },
-      whoami: function () { println('root'); return 0; },
-      id: function () { println('uid=0(root) gid=0(root) groups=0(root)'); return 0; },
-      hostname: function () { println(HOST); return 0; },
-      uname: function (args) {
-        println(args[0] === '-a'
-          ? 'Linux ' + HOST + ' 4.19.91-27.1.an8.x86_64 #1 SMP mock Mon Oct  6 10:00:00 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux'
-          : 'Linux');
+      pwd: function () {
+        println('/root');
         return 0;
       },
-      date: function () { println(new Date().toString()); return 0; },
+      whoami: function () {
+        println('root');
+        return 0;
+      },
+      id: function () {
+        println('uid=0(root) gid=0(root) groups=0(root)');
+        return 0;
+      },
+      hostname: function () {
+        println(HOST);
+        return 0;
+      },
+      uname: function (args) {
+        println(
+          args[0] === '-a'
+            ? 'Linux ' +
+                HOST +
+                ' 4.19.91-27.1.an8.x86_64 #1 SMP mock Mon Oct  6 10:00:00 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux'
+            : 'Linux'
+        );
+        return 0;
+      },
+      date: function () {
+        println(new Date().toString());
+        return 0;
+      },
       uptime: function () {
-        println(' ' + new Date().toTimeString().slice(0, 8) + ' up 32 days,  4:12,  2 users,  load average: 0.15, 0.10, 0.05');
+        println(
+          ' ' +
+            new Date().toTimeString().slice(0, 8) +
+            ' up 32 days,  4:12,  2 users,  load average: 0.15, 0.10, 0.05'
+        );
         return 0;
       },
       df: function (args) {
-        if (args[0] !== '-h') { println('Filesystem     1K-blocks     Used Available Use% Mounted on'); println('/dev/vda1       41922540 24117248 17805292  58% /'); return 0; }
+        if (args[0] !== '-h') {
+          println('Filesystem     1K-blocks     Used Available Use% Mounted on');
+          println('/dev/vda1       41922540 24117248 17805292  58% /');
+          return 0;
+        }
         println('Filesystem      Size  Used Avail Use% Mounted on');
         println('devtmpfs        3.8G     0  3.8G   0% /dev');
         println('/dev/vda1        40G   23G   17G  58% /');
@@ -394,21 +476,40 @@
       free: function (args) {
         var m = args[0] === '-m';
         println('              total        used        free      shared  buff/cache   available');
-        println(m ? 'Mem:           7809        2314        3105         128        2390        5121'
-          : 'Mem:            7.9Gi       2.3Gi       3.0Gi       125Mi       2.3Gi       5.0Gi');
-        println(m ? 'Swap:          2047           0        2047'
-          : 'Swap:           2.0Gi          0B       2.0Gi');
+        println(
+          m
+            ? 'Mem:           7809        2314        3105         128        2390        5121'
+            : 'Mem:            7.9Gi       2.3Gi       3.0Gi       125Mi       2.3Gi       5.0Gi'
+        );
+        println(
+          m
+            ? 'Swap:          2047           0        2047'
+            : 'Swap:           2.0Gi          0B       2.0Gi'
+        );
         return 0;
       },
       echo: function (args) {
-        println(args.map(function (a) { return a.replace(/\$\?/g, String(lastExit)); })
-          .join(' ').replace(/^["']|["']$/g, ''));
+        println(
+          args
+            .map(function (a) {
+              return a.replace(/\$\?/g, String(lastExit));
+            })
+            .join(' ')
+            .replace(/^["']|["']$/g, '')
+        );
         return 0;
       },
-      true: function () { return 0; },
-      false: function () { return 1; },
+      true: function () {
+        return 0;
+      },
+      false: function () {
+        return 1;
+      },
       cat: function (args) {
-        if (!args[0]) { println('cat: missing operand'); return 1; }
+        if (!args[0]) {
+          println('cat: missing operand');
+          return 1;
+        }
         if (args[0] === '/etc/hosts') {
           println('127.0.0.1   localhost localhost.localdomain');
           println('10.0.0.11   ' + HOST);
@@ -423,8 +524,15 @@
         });
         return 0;
       },
-      clear: function () { term.clear(); return 0; },
-      exit: function () { println('logout'); println('Connection to ' + HOST + ' closed.'); return 0; },
+      clear: function () {
+        term.clear();
+        return 0;
+      },
+      exit: function () {
+        println('logout');
+        println('Connection to ' + HOST + ' closed.');
+        return 0;
+      },
     };
 
     function run(line) {
@@ -437,14 +545,21 @@
       for (var i = 0; i < segs.length; i++) {
         var p = segs[i].trim().split(/\s+/);
         if (CMDS[p[0]]) rc = CMDS[p[0]](p.slice(1)) || 0;
-        else { println('bash: ' + p[0] + ': command not found'); rc = 127; break; }
+        else {
+          println('bash: ' + p[0] + ': command not found');
+          rc = 127;
+          break;
+        }
         if (rc !== 0) break;
       }
       lastExit = rc;
       return rc;
     }
 
-    function showPrompt() { write('\r\n' + PROMPT); buf = ''; }
+    function showPrompt() {
+      write('\r\n' + PROMPT);
+      buf = '';
+    }
 
     term.onData(function (data) {
       if (data === '\r') {
@@ -454,7 +569,10 @@
         return;
       }
       if (data === '\u007f') {
-        if (buf.length > 0) { buf = buf.slice(0, -1); term.write('\b \b'); }
+        if (buf.length > 0) {
+          buf = buf.slice(0, -1);
+          term.write('\b \b');
+        }
         return;
       }
       if (data === '\u0003') {

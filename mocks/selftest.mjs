@@ -19,7 +19,9 @@ import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
 import { encodePty } from './gb18030.mjs';
 
-const require = createRequire(path.join(fileURLToPath(import.meta.url), '..', '..', 'packages', 'bridge', 'package.json'));
+const require = createRequire(
+  path.join(fileURLToPath(import.meta.url), '..', '..', 'packages', 'bridge', 'package.json')
+);
 const { WebSocket } = require('ws');
 
 const PORT = Number(process.argv[2] || 8906);
@@ -62,7 +64,11 @@ function openSocket(query, encoding = 'utf-8') {
 }
 
 function closeSocket(state) {
-  try { state.ws.close(); } catch { /* ignore */ }
+  try {
+    state.ws.close();
+  } catch {
+    /* ignore */
+  }
 }
 
 function tes(text, encoding = 'utf-8') {
@@ -74,8 +80,13 @@ function waitFor(state, predicate, timeout = 1200) {
   return new Promise((resolve) => {
     const started = Date.now();
     const timer = setInterval(() => {
-      if (predicate(state)) { clearInterval(timer); resolve(true); }
-      else if (Date.now() - started > timeout) { clearInterval(timer); resolve(false); }
+      if (predicate(state)) {
+        clearInterval(timer);
+        resolve(true);
+      } else if (Date.now() - started > timeout) {
+        clearInterval(timer);
+        resolve(false);
+      }
     }, 20);
   });
 }
@@ -83,7 +94,9 @@ function waitFor(state, predicate, timeout = 1200) {
 async function main() {
   // 1. raw 帧
   {
-    const s = await openSocket('host=web-01&prompt=web-01%20~%20%24%20&banner=mingyu%20%E6%A8%A1%E6%8B%9F');
+    const s = await openSocket(
+      'host=web-01&prompt=web-01%20~%20%24%20&banner=mingyu%20%E6%A8%A1%E6%8B%9F'
+    );
     await waitFor(s, (x) => x.raw.includes('web-01 ~ $'));
     s.ws.send('echo raw-ok\r');
     const ok = await waitFor(s, (x) => x.raw.includes('\r\nraw-ok\r\n'));
@@ -113,7 +126,9 @@ async function main() {
     const s = await openSocket(qs.toString(), 'gb18030');
     const bannerOk = await waitFor(s, (x) => x.text.includes('web-01 ~ $'));
     // 下行中文应真的是 GB18030 字节（不是 UTF-8）
-    const hasGbBytes = s.bytes.some((b, i) => b >= 0x81 && b <= 0xfe && s.bytes[i + 1] >= 0x40 && s.bytes[i + 1] <= 0xfe);
+    const hasGbBytes = s.bytes.some(
+      (b, i) => b >= 0x81 && b <= 0xfe && s.bytes[i + 1] >= 0x40 && s.bytes[i + 1] <= 0xfe
+    );
     s.ws.send(tes('echo 中文输出测试\r', 'gb18030'));
     const echoOk = await waitFor(s, (x) => x.text.includes('中文输出测试'));
     check('guacamole/GB18030：中文下行按 GB18030 编码', bannerOk && hasGbBytes);
@@ -153,7 +168,10 @@ async function main() {
     const s = await openSocket('host=web-01&prompt=web-01%20~%20%24%20&frame=guacamole&frag=1');
     const bannerOk = await waitFor(s, (x) => x.text.includes('web-01 ~ $'));
     s.ws.send(tes('ls -l\r'));
-    const lsOk = await waitFor(s, (x) => x.text.includes('-rw-r--r--') && x.text.includes('deploy.log'));
+    const lsOk = await waitFor(
+      s,
+      (x) => x.text.includes('-rw-r--r--') && x.text.includes('deploy.log')
+    );
     check('分片下发：指令跨帧重组', bannerOk && lsOk, `${s.frameCount} 个 WS 帧`);
     closeSocket(s);
   }

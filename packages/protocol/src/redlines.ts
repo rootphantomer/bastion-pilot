@@ -128,11 +128,9 @@ function stripQuotes(value: string): string {
 
 function tokenize(segment: string): string[] {
   const withoutComment = segment.replace(/#.*$/, '');
-  return (
-    withoutComment.match(
-      /(?:[^\s"'\\]|\\.|\"(?:\\.|[^"])*\"|'(?:\\.|[^'])*')+/g
-    ) ?? []
-  ).map((token) => stripQuotes(token).replace(/\\(.)/g, '$1'));
+  return (withoutComment.match(/(?:[^\s"'\\]|\\.|\"(?:\\.|[^"])*\"|'(?:\\.|[^'])*')+/g) ?? []).map(
+    (token) => stripQuotes(token).replace(/\\(.)/g, '$1')
+  );
 }
 
 function analyzeCommand(command: string) {
@@ -186,11 +184,7 @@ function tarExtracts(args: string[]): boolean {
 
 function isHardKill(args: string[]): boolean {
   const joined = args.join(' ');
-  return (
-    args.includes('-9') ||
-    /-s\s+KILL\b/i.test(joined) ||
-    /\b(?:SIG)?KILL\b/i.test(joined)
-  );
+  return args.includes('-9') || /-s\s+KILL\b/i.test(joined) || /\b(?:SIG)?KILL\b/i.test(joined);
 }
 
 const CHECKS: RedlineCheck[] = [
@@ -230,9 +224,8 @@ const CHECKS: RedlineCheck[] = [
     test: ({ command, executables, inspectionOnly }) => {
       if (inspectionOnly) return false;
       const scripting = executables.some((exe) => /^(?:python\d*|perl|ruby|node)$/.test(exe));
-      const direct = /\b(?:socket\.socket|socket\.create_connection|IO::Socket|Net::Socket)\b/i.test(
-        command
-      );
+      const direct =
+        /\b(?:socket\.socket|socket\.create_connection|IO::Socket|Net::Socket)\b/i.test(command);
       const imported =
         /\bimport\s+socket\b/i.test(command) &&
         (/socket\s*\(/.test(command) || /\.connect\s*\(/.test(command));
@@ -261,7 +254,9 @@ const CHECKS: RedlineCheck[] = [
     detail: 'dd of=/dev/... 会破坏磁盘；必须逐条确认目标设备与备份。',
     tools: ['send_command'],
     test: ({ executables, args }) =>
-      executables.some((exe, i) => exe === 'dd' && (args[i] ?? []).some((a) => /^of=\/dev\//i.test(a))),
+      executables.some(
+        (exe, i) => exe === 'dd' && (args[i] ?? []).some((a) => /^of=\/dev\//i.test(a))
+      ),
   },
   {
     id: 'destructive-format',
@@ -306,8 +301,11 @@ const CHECKS: RedlineCheck[] = [
         const action = (args[i] ?? []).find((a) =>
           new Set(['stop', 'disable', 'mask']).has(a.toLowerCase())
         );
-        return Boolean(action) && /(?:edr|agent|antivirus|av|monitor|audit|log|secure|firewall|selinux)/i.test(
-          (args[i] ?? []).join(' ')
+        return (
+          Boolean(action) &&
+          /(?:edr|agent|antivirus|av|monitor|audit|log|secure|firewall|selinux)/i.test(
+            (args[i] ?? []).join(' ')
+          )
         );
       }),
   },
@@ -382,8 +380,8 @@ const CHECKS: RedlineCheck[] = [
     detail: 'chmod -R / chown -R 影响整棵目录树；先确认范围与回退命令。',
     tools: ['send_command'],
     test: ({ executables, args }) =>
-      executables.some((exe, i) =>
-        new Set(['chmod', 'chown']).has(exe) && hasFlags(args[i] ?? [], 'r')
+      executables.some(
+        (exe, i) => new Set(['chmod', 'chown']).has(exe) && hasFlags(args[i] ?? [], 'r')
       ),
   },
   {
@@ -428,7 +426,9 @@ const CHECKS: RedlineCheck[] = [
         (exe, i) =>
           new Set(['systemctl', 'service']).has(exe) &&
           (args[i] ?? []).some((a) =>
-            new Set(['enable', 'disable', 'start', 'stop', 'restart', 'reload']).has(a.toLowerCase())
+            new Set(['enable', 'disable', 'start', 'stop', 'restart', 'reload']).has(
+              a.toLowerCase()
+            )
           )
       ),
   },

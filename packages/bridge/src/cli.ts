@@ -34,7 +34,9 @@ program
 
 program
   .command('mcp-http')
-  .description('Run the MCP Streamable HTTP server on 127.0.0.1 (for clients that only accept a URL)')
+  .description(
+    'Run the MCP Streamable HTTP server on 127.0.0.1 (for clients that only accept a URL)'
+  )
   .option('-p, --port <port>', 'override the listen port', (v) => Number.parseInt(v, 10))
   .action(async (opts: { port?: number }) => {
     await runMcpHttpServer({ port: opts.port });

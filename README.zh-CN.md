@@ -56,10 +56,10 @@ Claude Code / Codex            侧边栏
 
 ## 你会得到什么
 
-| 大脑                                  | 接入方式                                      |
-| ------------------------------------- | --------------------------------------------- |
-| Claude Code / Codex / 任何 MCP 客户端 | `bastion-pilot mcp`（stdio）— 推荐            |
-| 侧边栏                                | 审批卡片 + 本地 Agent 的只读共享上下文        |
+| 大脑                                  | 接入方式                               |
+| ------------------------------------- | -------------------------------------- |
+| Claude Code / Codex / 任何 MCP 客户端 | `bastion-pilot mcp`（stdio）— 推荐     |
+| 侧边栏                                | 审批卡片 + 本地 Agent 的只读共享上下文 |
 
 暴露给 Agent 的工具：`list_sessions`、`send_command`、`read_output`、`wait_output`、
 `send_key`、`get_screen`、`upload_file`、`download_file` —— 完整契约见
@@ -155,20 +155,20 @@ Claude Code / Codex 自己的客户端里对话，并配好 `bastion-pilot mcp`�
 
 `~/.bastion-pilot/config.json`（由 `bastion-pilot init` 创建）：
 
-| 键                           | 默认值    | 说明                                                 |
-| ---------------------------- | --------- | ---------------------------------------------------- |
-| `server.port`                | `8765`    | daemon 监听端口（始终只绑 `127.0.0.1`）              |
-| `security.token`             | 自动生成  | 插件与 MCP Server 的配对 token                       |
-| `approval.mode`              | `confirm` | `auto` / `confirm` / `readonly`                      |
-| `approval.requireUserApproval` | `true`  | 默认所有命令、按键和文件操作都必须由面板明确批准       |
-| `approval.confirmTimeoutMs`  | `120000`  | 审批超时即拒绝                                       |
-| `approval.readonlyAllowlist` | `[]`      | 正则列表；`readonly` 模式下命中的命令放行            |
-| `providers[]`                | `[]`      | daemon 内置聊天的 Provider（插件不暴露）             |
-| `activeProviderId`           | `null`    | daemon 内置循环使用的 Provider                       |
-| `agent.maxIterations`        | `30`      | daemon 内置 Agent 循环上限                           |
-| `agent.systemPrompt`         | 内置      | 替换 daemon 默认的安全优先提示词                     |
-| `output.maxInlineChars`      | `6000`    | 超过则截断 + 落盘                                    |
-| `transcripts.enabled`        | `true`    | 按会话记录终端转录到 `~/.bastion-pilot/transcripts/` |
+| 键                             | 默认值    | 说明                                                 |
+| ------------------------------ | --------- | ---------------------------------------------------- |
+| `server.port`                  | `8765`    | daemon 监听端口（始终只绑 `127.0.0.1`）              |
+| `security.token`               | 自动生成  | 插件与 MCP Server 的配对 token                       |
+| `approval.mode`                | `confirm` | `auto` / `confirm` / `readonly`                      |
+| `approval.requireUserApproval` | `true`    | 默认所有命令、按键和文件操作都必须由面板明确批准     |
+| `approval.confirmTimeoutMs`    | `120000`  | 审批超时即拒绝                                       |
+| `approval.readonlyAllowlist`   | `[]`      | 正则列表；`readonly` 模式下命中的命令放行            |
+| `providers[]`                  | `[]`      | daemon 内置聊天的 Provider（插件不暴露）             |
+| `activeProviderId`             | `null`    | daemon 内置循环使用的 Provider                       |
+| `agent.maxIterations`          | `30`      | daemon 内置 Agent 循环上限                           |
+| `agent.systemPrompt`           | 内置      | 替换 daemon 默认的安全优先提示词                     |
+| `output.maxInlineChars`        | `6000`    | 超过则截断 + 落盘                                    |
+| `transcripts.enabled`          | `true`    | 按会话记录终端转录到 `~/.bastion-pilot/transcripts/` |
 
 插件侧设置（选项页）：服务地址、配对令牌、已授权站点及每个站点的站点 profile
 （`generic-xterm` / `jumpserver` / `anheng-mingyu`）。插件不保存任何远程 AI 服务商凭据。

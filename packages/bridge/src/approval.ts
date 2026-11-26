@@ -66,7 +66,10 @@ export function summarizeToolCall(tool: string, params: Record<string, unknown>)
 function redactCommand(command: string): string {
   const compact = command.replace(/\s+/g, ' ').trim();
   const redacted = compact
-    .replace(/(\b(?:password|passwd|token|secret|api[_-]?key)\s*[=:]\s*)([^\s;]+)/gi, '$1[redacted]')
+    .replace(
+      /(\b(?:password|passwd|token|secret|api[_-]?key)\s*[=:]\s*)([^\s;]+)/gi,
+      '$1[redacted]'
+    )
     .replace(/(--(?:password|token|secret|api[-_]?key)(?:=|\s+))([^\s;]+)/gi, '$1[redacted]');
   return redacted.length > 200 ? redacted.slice(0, 200) + '…' : redacted;
 }

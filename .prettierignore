@@ -1,0 +1,17 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+*.tsbuildinfo
+
+# Extension packaging
+*.zip
+
+# Generated / tool-owned files: rewriting these causes churn
+# (pnpm restores its own YAML style on the next install)
+pnpm-lock.yaml
+
+# Local release bundles
+release/

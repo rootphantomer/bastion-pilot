@@ -21,14 +21,14 @@ node mocks/server.mjs 8906 anheng-mingyu
 
 ## 端口 ↔ profile 对照
 
-| 端口 | 地址 | profile |
-| --- | --- | --- |
-| 8901 | http://127.0.0.1:8901/ | generic-xterm |
-| 8902 | http://127.0.0.1:8902/ | jumpserver |
-| 8903 | http://127.0.0.1:8903/ | teleport |
-| 8904 | http://127.0.0.1:8904/ | qizhi |
+| 端口 | 地址                   | profile            |
+| ---- | ---------------------- | ------------------ |
+| 8901 | http://127.0.0.1:8901/ | generic-xterm      |
+| 8902 | http://127.0.0.1:8902/ | jumpserver         |
+| 8903 | http://127.0.0.1:8903/ | teleport           |
+| 8904 | http://127.0.0.1:8904/ | qizhi              |
 | 8905 | http://127.0.0.1:8905/ | aliyun-bastionhost |
-| 8906 | http://127.0.0.1:8906/ | anheng-mingyu |
+| 8906 | http://127.0.0.1:8906/ | anheng-mingyu      |
 
 扩展 Options → Bastion sites 逐个添加上表 origin 并选择对应 profile；
 打开页面 → 登录（任意凭据）→ 扩展即 hook 出会话，`list_sessions` 可见。
@@ -37,12 +37,12 @@ node mocks/server.mjs 8906 anheng-mingyu
 
 `ws://<host>/ws?host=<主机名>&prompt=<提示符>`
 
-| 参数 | 说明 |
-| --- | --- |
-| `banner` / `note` | 连接时下发的欢迎行（页面通过 `MOCK_CFG.banner` 传入，含中文便于验证编码） |
-| `frame=guacamole` | 下行/上行改为 Guacamole 指令流 `<len>.tes,<len>.<base64>;`（mingyu V2.0 样式） |
-| `enc=gb18030` | guacamole 载荷按 GB18030 编解码（默认 UTF-8）；中文即 GB18030 字节，供扩展 `textEncoding: "auto"` 识别 |
-| `frag=1` | 把一条 guacamole 指令拆成多帧下发，覆盖扩展 framer 的 carry 重组路径 |
+| 参数              | 说明                                                                                                   |
+| ----------------- | ------------------------------------------------------------------------------------------------------ |
+| `banner` / `note` | 连接时下发的欢迎行（页面通过 `MOCK_CFG.banner` 传入，含中文便于验证编码）                              |
+| `frame=guacamole` | 下行/上行改为 Guacamole 指令流 `<len>.tes,<len>.<base64>;`（mingyu V2.0 样式）                         |
+| `enc=gb18030`     | guacamole 载荷按 GB18030 编解码（默认 UTF-8）；中文即 GB18030 字节，供扩展 `textEncoding: "auto"` 识别 |
+| `frag=1`          | 把一条 guacamole 指令拆成多帧下发，覆盖扩展 framer 的 carry 重组路径                                   |
 
 原生帧（无 `frame`）为 raw PTY 字节（UTF-8，`\r\n` 换行）。
 

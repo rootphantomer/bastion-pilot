@@ -303,9 +303,7 @@ export class AgentLoop {
     const { provider } = this.opts;
     const base = provider.baseUrl.replace(/\/+$/, '');
     const stream = provider.stream !== false;
-    const systemPrompt = composeSystemPrompt(
-      this.opts.systemPrompt ?? DEFAULT_SYSTEM_PROMPT
-    );
+    const systemPrompt = composeSystemPrompt(this.opts.systemPrompt ?? DEFAULT_SYSTEM_PROMPT);
     const context = this.trimForContext(messages);
     let turnStart = context.length - 1;
     while (turnStart >= 0 && context[turnStart]?.role !== 'user') turnStart--;
@@ -324,10 +322,7 @@ export class AgentLoop {
           ];
     const body: Record<string, unknown> = {
       model: provider.model,
-      messages: [
-        { role: 'system', content: systemPrompt },
-        ...markedContext,
-      ],
+      messages: [{ role: 'system', content: systemPrompt }, ...markedContext],
       tools: this.toolsParam,
       stream,
     };

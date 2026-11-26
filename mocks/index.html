@@ -1,50 +1,125 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
-<head>
-<meta charset="UTF-8">
-<title>BastionPilot · 堡垒机 SSH 模拟页面</title>
-<link rel="stylesheet" href="assets/mock.css">
-<style>
-.grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(320px,1fr)); gap:16px; padding:24px; }
-.card { background:#161b22; border:1px solid #262c36; border-radius:10px; padding:18px; color:#c9d1d9; }
-.card h3 { margin:0 0 4px; font-size:15px; color:#e6edf3; }
-.card .pid { font-family:monospace; font-size:11px; color:#58a6ff; margin-bottom:8px; }
-.card p { font-size:12px; color:#8b949e; line-height:1.6; min-height:38px; }
-.card a { display:inline-block; margin-top:8px; padding:7px 14px; background:#2d7ff9; color:#fff;
-  border-radius:6px; text-decoration:none; font-size:13px; }
-header { padding:24px 24px 0; color:#e6edf3; }
-header h1 { font-size:20px; margin:0 0 6px; }
-header p { color:#8b949e; font-size:13px; margin:0; }
-body { background:#0d1117; }
-.note { padding:0 24px; color:#d29922; font-size:12px; }
-</style>
-</head>
-<body>
-<header>
-  <h1>BastionPilot · 支持的堡垒机 — SSH 连接模拟页面</h1>
-  <p>对应 packages/extension/src/profiles.ts 的 6 个内置 profile。每页先显示登录页，任意凭据登录后进入 xterm.js 模拟终端。</p>
-</header>
-<p class="note">⚠ 需要联网加载 xterm.js CDN；在扩展 Options → Bastion sites 里把本地地址授权并选择对应 profile 后即可联调。</p>
-<div class="grid">
-  <div class="card"><h3>通用 xterm.js 终端（ttyd 风格）</h3><div class="pid">generic-xterm</div>
-    <p>默认 profile：raw PTY 字节流，适配 ttyd / koko / sshwifty 等大多数产品。</p>
-    <a href="generic-xterm.html">打开模拟页</a></div>
-  <div class="card"><h3>JumpServer（koko Web 终端）</h3><div class="pid">jumpserver</div>
-    <p>koko 原始 PTY 流，含 JumpServer 专属 DOM hints 与提示符模式。</p>
-    <a href="jumpserver.html">打开模拟页</a></div>
-  <div class="card"><h3>Teleport Web 终端</h3><div class="pid">teleport（实验性）</div>
-    <p>xterm.js + raw PTY 流，紫色 Gravitational Teleport 界面风格。</p>
-    <a href="teleport.html">打开模拟页</a></div>
-  <div class="card"><h3>齐治运维堡垒机</h3><div class="pid">qizhi（实验性）</div>
-    <p>xterm.js 字符终端，绿色齐治运维审计界面风格，含 #term / .terminal-box hints。</p>
-    <a href="qizhi.html">打开模拟页</a></div>
-  <div class="card"><h3>阿里云云盾堡垒机</h3><div class="pid">aliyun-bastionhost（实验性）</div>
-    <p>Bastionhost Web 运维终端风格，含 #terminal-container hint。</p>
-    <a href="aliyun-bastionhost.html">打开模拟页</a></div>
-  <div class="card"><h3>mingyu V2.0 运维审计</h3><div class="pid">anheng-mingyu（实验性）</div>
-    <p>guacamole 分帧（tes/base64）、GB18030/UTF-8 自动识别、分片下发、CR 换行；
-    工具栏可切换编码、断开/重连，含资源树、水印与会话状态栏。</p>
-    <a href="anheng-mingyu.html">打开模拟页</a></div>
-</div>
-</body>
+  <head>
+    <meta charset="UTF-8" />
+    <title>BastionPilot · 堡垒机 SSH 模拟页面</title>
+    <link rel="stylesheet" href="assets/mock.css" />
+    <style>
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+        gap: 16px;
+        padding: 24px;
+      }
+      .card {
+        background: #161b22;
+        border: 1px solid #262c36;
+        border-radius: 10px;
+        padding: 18px;
+        color: #c9d1d9;
+      }
+      .card h3 {
+        margin: 0 0 4px;
+        font-size: 15px;
+        color: #e6edf3;
+      }
+      .card .pid {
+        font-family: monospace;
+        font-size: 11px;
+        color: #58a6ff;
+        margin-bottom: 8px;
+      }
+      .card p {
+        font-size: 12px;
+        color: #8b949e;
+        line-height: 1.6;
+        min-height: 38px;
+      }
+      .card a {
+        display: inline-block;
+        margin-top: 8px;
+        padding: 7px 14px;
+        background: #2d7ff9;
+        color: #fff;
+        border-radius: 6px;
+        text-decoration: none;
+        font-size: 13px;
+      }
+      header {
+        padding: 24px 24px 0;
+        color: #e6edf3;
+      }
+      header h1 {
+        font-size: 20px;
+        margin: 0 0 6px;
+      }
+      header p {
+        color: #8b949e;
+        font-size: 13px;
+        margin: 0;
+      }
+      body {
+        background: #0d1117;
+      }
+      .note {
+        padding: 0 24px;
+        color: #d29922;
+        font-size: 12px;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>BastionPilot · 支持的堡垒机 — SSH 连接模拟页面</h1>
+      <p>
+        对应 packages/extension/src/profiles.ts 的 6 个内置
+        profile。每页先显示登录页，任意凭据登录后进入 xterm.js 模拟终端。
+      </p>
+    </header>
+    <p class="note">
+      ⚠ 需要联网加载 xterm.js CDN；在扩展 Options → Bastion sites 里把本地地址授权并选择对应
+      profile 后即可联调。
+    </p>
+    <div class="grid">
+      <div class="card">
+        <h3>通用 xterm.js 终端（ttyd 风格）</h3>
+        <div class="pid">generic-xterm</div>
+        <p>默认 profile：raw PTY 字节流，适配 ttyd / koko / sshwifty 等大多数产品。</p>
+        <a href="generic-xterm.html">打开模拟页</a>
+      </div>
+      <div class="card">
+        <h3>JumpServer（koko Web 终端）</h3>
+        <div class="pid">jumpserver</div>
+        <p>koko 原始 PTY 流，含 JumpServer 专属 DOM hints 与提示符模式。</p>
+        <a href="jumpserver.html">打开模拟页</a>
+      </div>
+      <div class="card">
+        <h3>Teleport Web 终端</h3>
+        <div class="pid">teleport（实验性）</div>
+        <p>xterm.js + raw PTY 流，紫色 Gravitational Teleport 界面风格。</p>
+        <a href="teleport.html">打开模拟页</a>
+      </div>
+      <div class="card">
+        <h3>齐治运维堡垒机</h3>
+        <div class="pid">qizhi（实验性）</div>
+        <p>xterm.js 字符终端，绿色齐治运维审计界面风格，含 #term / .terminal-box hints。</p>
+        <a href="qizhi.html">打开模拟页</a>
+      </div>
+      <div class="card">
+        <h3>阿里云云盾堡垒机</h3>
+        <div class="pid">aliyun-bastionhost（实验性）</div>
+        <p>Bastionhost Web 运维终端风格，含 #terminal-container hint。</p>
+        <a href="aliyun-bastionhost.html">打开模拟页</a>
+      </div>
+      <div class="card">
+        <h3>mingyu V2.0 运维审计</h3>
+        <div class="pid">anheng-mingyu（实验性）</div>
+        <p>
+          guacamole 分帧（tes/base64）、GB18030/UTF-8 自动识别、分片下发、CR 换行；
+          工具栏可切换编码、断开/重连，含资源树、水印与会话状态栏。
+        </p>
+        <a href="anheng-mingyu.html">打开模拟页</a>
+      </div>
+    </div>
+  </body>
 </html>

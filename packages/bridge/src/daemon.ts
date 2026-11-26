@@ -509,7 +509,8 @@ export async function startDaemon(opts: DaemonOptions = {}): Promise<DaemonHandl
       tool,
       (result as Record<string, unknown>)?.exitCode as number | undefined,
       ((result as Record<string, unknown>)?.text ?? (result as Record<string, unknown>)?.screen) as
-        string | undefined
+        | string
+        | undefined
     );
     if (source === 'mcp') {
       sharedContext.append({
@@ -778,7 +779,9 @@ export async function startDaemon(opts: DaemonOptions = {}): Promise<DaemonHandl
           if (uniqueModels.length === 0) throw new Error('provider returned no models');
           sendTo(conn, 'provider_models', { models: uniqueModels });
         } catch (err) {
-          sendTo(conn, 'error', { message: `could not fetch provider models: ${(err as Error).message}` });
+          sendTo(conn, 'error', {
+            message: `could not fetch provider models: ${(err as Error).message}`,
+          });
         }
         break;
       }
