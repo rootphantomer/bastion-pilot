@@ -6,6 +6,27 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.3.0-no-remote-ai] - 2026-11-26
+
+### 新增
+
+- 新增 `bastion-pilot mcp-http`：在 `127.0.0.1` 上以 Streamable HTTP 传输暴露同一套 MCP 工具，
+  供无法拉起本地 stdio 子进程、只能填写服务地址的客户端使用（例如豆包工作）。默认端口
+  `8766`，可用 `--port` 或配置项 `server.mcpHttpPort` 覆盖。
+  - 请求需携带配对令牌：`Authorization: Bearer <security.token>`，令牌取自
+    `~/.bastion-pilot/config.json`；缺失或不匹配直接返回 401。
+  - 按连接维持状态化会话，每个会话独立绑定一个 server 实例；与 stdio 入口共用同一个
+    daemon、同一套工具、审批策略与审计链路。
+  - 只监听回环地址，不对外网暴露。
+
+### 变更
+
+- `mcpServer.ts` 拆出可复用的 `connectHub` / `createMcpServer`，stdio 入口行为保持不变，
+  Claude Code / Codex 现有配置无需调整。
+- 仓库统一执行 prettier 格式化，覆盖 Markdown 表格对齐、代码表达式换行与 mock 页面、
+  扩展静态页的标签与样式规范化；新增 `.prettierignore` 忽略构建产物与 `pnpm-lock.yaml`。
+  本次格式化为纯样式调整，不改变任何行为。
+
 ## [0.2.3-no-remote-ai] - 2026-11-26
 
 ### 变更

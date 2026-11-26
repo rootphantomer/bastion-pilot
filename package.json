@@ -1,7 +1,7 @@
 {
   "name": "bastion-pilot-monorepo",
   "private": true,
-  "version": "0.2.3-no-remote-ai",
+  "version": "0.3.0-no-remote-ai",
   "description": "BastionPilot — bring AI agents to bastion-host web terminals. Browser extension + local bridge (MCP server & built-in agent loop).",
   "license": "MIT",
   "packageManager": "pnpm@12.14.0",
