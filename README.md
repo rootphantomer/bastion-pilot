@@ -65,6 +65,7 @@ Claude Code / Codex            Side panel
 | Brain                                | How to connect                                                     |
 | ------------------------------------ | ------------------------------------------------------------------ |
 | Claude Code / Codex / any MCP client | `bastion-pilot mcp` (stdio) — recommended                          |
+| Doubao Work / URL-only clients       | `bastion-pilot mcp-http` (Streamable HTTP)                         |
 | Side panel                           | approvals, per-terminal approval history, read-only shared context |
 
 Tools exposed to agents: `list_sessions`, `send_command`, `read_output`, `wait_output`,
@@ -136,6 +137,27 @@ claude mcp add bastion-pilot -- node /absolute/path/to/bastion-pilot/packages/br
 command = "node"
 args = ["/absolute/path/to/bastion-pilot/packages/bridge/dist/cli.js", "mcp"]
 ```
+
+**Doubao Work / other URL-only clients** — these clients do not spawn a local stdio subprocess and
+can only connect to an MCP endpoint, so start the Streamable HTTP entry first:
+
+```bash
+node packages/bridge/dist/cli.js mcp-http            # defaults to 127.0.0.1:8766
+node packages/bridge/dist/cli.js mcp-http --port 8800
+```
+
+Then register it in that client's MCP / connector settings:
+
+- URL: `http://127.0.0.1:8766/mcp`
+- Auth: `Authorization: Bearer <security.token from ~/.bastion-pilot/config.json>`
+
+Doubao Work's MCP backend supports both Streamable HTTP and legacy HTTP+SSE, but only exposes URL
+registration to users — not a local command — which is why this path exists. It shares the same
+daemon, tools, approval and audit chain as the stdio entry: once `mcp-http` is running, add the
+connector once and the agent in that client can drive your bastion terminals.
+
+The HTTP entry binds to loopback only and is never exposed off-host; the stdio entry is untouched,
+so Claude Code / Codex keep using the configuration above.
 
 Then, in your agent, ask something like: _"list the bastion sessions, and on web-01 check disk
 usage"_. The agent will call `list_sessions`, then `send_command df -h`, read the output, and

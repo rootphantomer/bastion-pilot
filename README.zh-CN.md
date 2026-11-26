@@ -56,10 +56,11 @@ Claude Code / Codex            侧边栏
 
 ## 你会得到什么
 
-| 大脑                                  | 接入方式                               |
-| ------------------------------------- | -------------------------------------- |
-| Claude Code / Codex / 任何 MCP 客户端 | `bastion-pilot mcp`（stdio）— 推荐     |
-| 侧边栏                                | 审批卡片 + 本地 Agent 的只读共享上下文 |
+| 大脑                                  | 接入方式                                    |
+| ------------------------------------- | ------------------------------------------- |
+| Claude Code / Codex / 任何 MCP 客户端 | `bastion-pilot mcp`（stdio）— 推荐          |
+| 豆包工作等只能填 URL 的客户端         | `bastion-pilot mcp-http`（Streamable HTTP） |
+| 侧边栏                                | 审批卡片 + 本地 Agent 的只读共享上下文      |
 
 暴露给 Agent 的工具：`list_sessions`、`send_command`、`read_output`、`wait_output`、
 `send_key`、`get_screen`、`upload_file`、`download_file` —— 完整契约见
@@ -126,6 +127,22 @@ claude mcp add bastion-pilot -- node /绝对路径/bastion-pilot/packages/bridge
 command = "node"
 args = ["/绝对路径/bastion-pilot/packages/bridge/dist/cli.js", "mcp"]
 ```
+
+**豆包工作 / 其他只能填 URL 的客户端** — 这类客户端不会拉起本地 stdio 子进程，只能连接一个 MCP 服务地址，因此要先起 Streamable HTTP 入口：
+
+```bash
+node packages/bridge/dist/cli.js mcp-http            # 默认 127.0.0.1:8766
+node packages/bridge/dist/cli.js mcp-http --port 8800
+```
+
+然后在该客户端的 MCP / 连接器配置里填：
+
+- URL：`http://127.0.0.1:8766/mcp`
+- 鉴权：`Authorization: Bearer <~/.bastion-pilot/config.json 里的 security.token>`
+
+豆包工作的 MCP 后端支持 Streamable HTTP 与 legacy HTTP+SSE 两种远程传输，但用户侧只开放 URL 接入、不开放本地命令，所以走这条路径。它和 stdio 入口共用同一个 daemon、同一套工具、审批与审计链路：起好 `mcp-http` 后，在豆包工作的连接器里加一次，就能在这个客户端里直接让 Agent 操作堡垒机终端。
+
+HTTP 入口只绑回环地址，不对外网暴露；stdio 入口完全不受影响，Claude Code / Codex 继续按上面的方式配置。
 
 然后就可以在 Agent 里说：_“列出堡垒机会话，然后在 web-01 上看看磁盘占用。”_ Agent 会先调
 `list_sessions`，再 `send_command df -h`，读输出、给结论——全程受你的审批模式约束。
