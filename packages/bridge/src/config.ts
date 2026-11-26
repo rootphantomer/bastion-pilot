@@ -35,7 +35,7 @@ export interface ApprovalConfig {
 }
 
 export interface BastionPilotConfig {
-  server: { port: number };
+  server: { port: number; mcpHttpPort?: number };
   security: { token: string };
   approval: ApprovalConfig;
   providers: ProviderConfig[];
@@ -62,7 +62,12 @@ const providerSchema = z.object({
 });
 
 const configSchema = z.object({
-  server: z.object({ port: z.number().int().min(0).max(65_535) }).optional(),
+  server: z
+    .object({
+      port: z.number().int().min(0).max(65_535),
+      mcpHttpPort: z.number().int().min(0).max(65_535).optional(),
+    })
+    .optional(),
   security: z.object({ token: z.string().min(8) }).optional(),
   approval: z
     .object({

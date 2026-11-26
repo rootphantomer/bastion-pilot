@@ -2,7 +2,7 @@ import { Command } from 'commander';
 import { configPaths, loadConfig, resolveHome, type BastionPilotConfig } from './config.js';
 import { startDaemon } from './daemon.js';
 import { isPortServing } from './hubClient.js';
-import { runMcpServer } from './mcpServer.js';
+import { runMcpServer, runMcpHttpServer } from './mcpServer.js';
 import { TranscriptRecorder } from './transcripts.js';
 import { VERSION } from './version.js';
 
@@ -30,6 +30,14 @@ program
   .description('Run the MCP stdio server (used by Claude Code, Codex and other MCP clients)')
   .action(async () => {
     await runMcpServer();
+  });
+
+program
+  .command('mcp-http')
+  .description('Run the MCP Streamable HTTP server on 127.0.0.1 (for clients that only accept a URL)')
+  .option('-p, --port <port>', 'override the listen port', (v) => Number.parseInt(v, 10))
+  .action(async (opts: { port?: number }) => {
+    await runMcpHttpServer({ port: opts.port });
   });
 
 program
