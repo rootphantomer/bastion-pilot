@@ -12,6 +12,8 @@ export interface AuditEntry {
   ok: boolean;
   durationMs: number;
   error?: string;
+  /** Built-in ops redline ids hit by an approved/denied tool call. */
+  redlineIds?: string[];
   exitCode?: number | null;
   outputChars?: number;
   outputFile?: string;

@@ -22,7 +22,13 @@ interface StateMessage {
     lastSeenAt: number;
   }>;
   sessions: Array<{ sessionId: string; title: string; state: string; profileId: string }>;
-  approvals: Array<{ requestId: string; tool: string; summary: string; sessionId?: string }>;
+  approvals: Array<{
+    requestId: string;
+    tool: string;
+    summary: string;
+    sessionId?: string;
+    redline?: { title: string; details: string[] };
+  }>;
 }
 
 interface ChatEventMessage {
@@ -107,9 +113,10 @@ function renderApprovals(approvals: StateMessage['approvals']) {
   approvalsEl.textContent = '';
   for (const approval of approvals) {
     const div = document.createElement('div');
-    div.className = 'approval';
+    div.className = approval.redline ? 'approval redline' : 'approval';
     div.innerHTML = `
       <div class="title"></div>
+      <div class="redline-warning hidden"></div>
       <div class="summary"></div>
       <div class="actions">
         <button class="approve">批准执行</button>
@@ -118,6 +125,12 @@ function renderApprovals(approvals: StateMessage['approvals']) {
     (div.querySelector('.title') as HTMLElement).textContent = `需要批准：${toolLabel(
       approval.tool
     )}${approval.sessionId ? ` · 终端 ${approval.sessionId.slice(0, 14)}` : ''}`;
+    if (approval.redline) {
+      const warning = div.querySelector('.redline-warning') as HTMLElement;
+      warning.classList.remove('hidden');
+      warning.textContent = `${approval.redline.title}：${approval.redline.details.join('；')}`;
+      (div.querySelector('.approve') as HTMLButtonElement).textContent = '二次确认并批准';
+    }
     (div.querySelector('.summary') as HTMLElement).textContent = approval.summary;
     (div.querySelector('.approve') as HTMLButtonElement).addEventListener('click', () => {
       postToBackground({

@@ -1,8 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { REDLINE_POLICY_PROMPT } from '@bastion-pilot/protocol';
 import {
   AgentLoop,
   DEFAULT_SYSTEM_PROMPT,
   LIVE_STATE_POLICY,
+  composeSystemPrompt,
   needsLiveCommand,
   type AgentLoopOptions,
   type LoopHooks,
@@ -81,9 +83,15 @@ describe('AgentLoop provider calls', () => {
     expect(result.messages.at(-1)).toEqual({ role: 'assistant', content: 'done' });
     expect(bodies[0]!.messages[0]).toEqual({
       role: 'system',
-      content: `OPERATOR-SYS\n\n${LIVE_STATE_POLICY}`,
+      content: `OPERATOR-SYS\n\n${REDLINE_POLICY_PROMPT}\n\n${LIVE_STATE_POLICY}`,
     });
     expect(bodies[0]!.messages.at(-1)).toEqual({ role: 'user', content: 'hi' });
+  });
+
+  it('does not duplicate the redline policy in the built-in prompt', () => {
+    const composed = composeSystemPrompt(DEFAULT_SYSTEM_PROMPT);
+    expect(composed.split(REDLINE_POLICY_PROMPT)).toHaveLength(2);
+    expect(composed).toBe(`${DEFAULT_SYSTEM_PROMPT}\n\n${LIVE_STATE_POLICY}`);
   });
 
   it('falls back to the built-in system prompt', async () => {

@@ -100,6 +100,7 @@ node mocks/selftest.mjs 8906               # 不起浏览器，直接验协议
 
 ## 6. 终端操作规则
 
+- 服务器操作红线见 `docs/ops-redlines.md`，对 MCP 客户端和内置 agent 同时生效；命中红线的写操作不会绕过审批，卡片会显示「违反红线，需二次确认」。
 - 不要输入密码、口令、Token、验证码；遇到 `sudo` / 登录 / 密钥口令提示，停下来让人自己输。
 - 一次一条逻辑命令，用 `&&` / `;` 串联；不要启动 `vim`、`top`、`less`、REPL 等交互式全屏程序；可能读 stdin 的命令加 `</dev/null`。
 - 复用现有终端，不为了并行新开堡垒机会话；中止用 `send_key ctrl+c`。
@@ -116,4 +117,4 @@ node mocks/selftest.mjs 8906               # 不起浏览器，直接验协议
 
 ## 8. 参考
 
-`README.md` / `README.zh-CN.md`、`docs/tools.md`、`docs/anheng-mingyu-findings.md`、`mocks/README.md`、`profiles/README.md`、`SECURITY.md`。
+`README.md` / `README.zh-CN.md`、`docs/tools.md`、`docs/ops-redlines.md`、`docs/anheng-mingyu-findings.md`、`mocks/README.md`、`profiles/README.md`、`SECURITY.md`。

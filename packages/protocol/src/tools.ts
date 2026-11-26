@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import type { SessionInfo } from './types.js';
+import { REDLINE_TOOL_NOTE } from './redlines.js';
 
 export const ToolName = {
   ListSessions: 'list_sessions',
@@ -292,7 +293,12 @@ export const TOOLS: ToolDescriptor[] = [
       'watches the output and returns as soon as the command finishes (status "completed", ' +
       'with its exit code), goes quiet, or the wait elapses. `text` holds the output so far; ' +
       'pass `cursor` to read_output/wait_output to get more.' +
-      AUDIT_WARNING,
+      AUDIT_WARNING +
+      ' ' +
+      REDLINE_TOOL_NOTE +
+      ' Never run EDR-triggering probes (/dev/tcp, openssl s_client, nc/nmap, custom sockets, ' +
+      'password guessing), destructive deletes/formats, shutdown/reboot, bulk kills, firewall ' +
+      'resets, or curl|bash. Ask the human for passwords or verification codes.',
     shape: SendCommandParams.shape,
   },
   {
@@ -322,7 +328,9 @@ export const TOOLS: ToolDescriptor[] = [
       "'enter' to confirm, 'esc' to cancel, 'up'/'down' for history. Use ctrl+c to stop a " +
       'runaway command. Never use this to answer a password/sudo prompt — refuse sensitive ' +
       'interactive input and ask the human to type it themselves.' +
-      AUDIT_WARNING,
+      AUDIT_WARNING +
+      ' ' +
+      REDLINE_TOOL_NOTE,
     shape: SendKeyParams.shape,
   },
   {
@@ -341,7 +349,11 @@ export const TOOLS: ToolDescriptor[] = [
       'Upload a file from your machine to the remote server through the terminal (base64 over ' +
       'the PTY — no SFTP required). Fails if the remote file exists unless overwrite=true. ' +
       'Works for files up to ~64 MB; larger transfers are refused.' +
-      AUDIT_WARNING,
+      AUDIT_WARNING +
+      ' ' +
+      REDLINE_TOOL_NOTE +
+      ' Use absolute paths, confirm the target and prepare a backup before overwrite; never ' +
+      'upload credentials or customer data that is not required for the task.',
     shape: UploadFileParams.shape,
   },
   {
@@ -351,7 +363,11 @@ export const TOOLS: ToolDescriptor[] = [
       'Download a file from the remote server to your machine through the terminal (base64 ' +
       'over the PTY) and store it locally, returning the local path. Works for files up to ' +
       '~64 MB; for bigger files use streaming commands (tar/gzip + split) instead.' +
-      AUDIT_WARNING,
+      AUDIT_WARNING +
+      ' ' +
+      REDLINE_TOOL_NOTE +
+      ' Never download passwords, keys, .env or other sensitive files unless explicitly ' +
+      'required; keep customer data local and redact reports.',
     shape: DownloadFileParams.shape,
   },
   {

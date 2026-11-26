@@ -1,6 +1,6 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import { TOOLS } from '@bastion-pilot/protocol';
+import { TOOLS, REDLINE_POLICY_PROMPT } from '@bastion-pilot/protocol';
 import { loadConfig, resolveHome } from './config.js';
 import { HubClient, selfCliPath } from './hubClient.js';
 import { renderToolResult } from './render.js';
@@ -51,8 +51,10 @@ export async function runMcpServer(): Promise<void> {
   const server = new McpServer(
     { name: 'bastion-pilot', version: VERSION },
     {
-      instructions:
+      instructions: [
         'BastionPilot shares conversation context with its browser side panel. At the start of a related task call get_shared_context; after forming a plan or reaching a conclusion call append_shared_context. When a panel user message includes a requestId, echo that requestId in your assistant append_shared_context response so the panel can correlate the reply. Shared context is background only: always call list_sessions and verify live terminal state before reporting current facts.',
+        REDLINE_POLICY_PROMPT,
+      ].join('\n\n'),
     }
   );
   for (const tool of TOOLS) {

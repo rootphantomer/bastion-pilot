@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { RedlineWarningSchema } from './redlines.js';
 
 /**
  * Wire protocol v1 between BastionPilot daemons and their clients
@@ -431,6 +432,7 @@ export const DaemonMessage = z.discriminatedUnion('type', [
       tool: z.string(),
       sessionId: z.string().optional(),
       summary: z.string(),
+      redline: RedlineWarningSchema.optional(),
       expiresAt: z.number(),
     }),
   }),

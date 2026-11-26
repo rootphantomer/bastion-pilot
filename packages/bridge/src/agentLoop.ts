@@ -1,4 +1,10 @@
-import { TOOLS, toolSchema, type ToolDescriptor, type ToolName } from '@bastion-pilot/protocol';
+import {
+  TOOLS,
+  toolSchema,
+  REDLINE_POLICY_PROMPT,
+  type ToolDescriptor,
+  type ToolName,
+} from '@bastion-pilot/protocol';
 import { z } from 'zod';
 import type { ProviderConfig } from './config.js';
 
@@ -40,7 +46,9 @@ Rules:
 - Read the output carefully before acting. If a command is still streaming, use wait_output or read_output instead of re-running it.
 - Never type passwords or interactive secrets. If a command prompts for credentials, abort with send_key ctrl+c and ask the user to handle authentication themselves.
 - Abort runaway commands with send_key ctrl+c instead of opening new sessions.
-- Every action is audit-logged by the bastion host. Act with the care of a production operator and explain what you are doing.`;
+- Every action is audit-logged by the bastion host. Act with the care of a production operator and explain what you are doing.
+
+${REDLINE_POLICY_PROMPT}`;
 
 export const LIVE_STATE_POLICY = `History is background knowledge, never proof of the current terminal state.
 - For every request to inspect or operate the server, discover the current sessions again and execute the relevant command in THIS user turn before stating a result. A previous successful command is not verification for a new turn.
@@ -49,6 +57,18 @@ export const LIVE_STATE_POLICY = `History is background knowledge, never proof o
 - Historical results may explain background and earlier decisions. Clearly label any explicitly requested historical information as historical, not current.
 - Do not repeat modifying commands merely to refresh state. Verify their effects with read-only commands. Prefer read-only inspection and preserve the approval policy.
 - Reply in Chinese unless the user requests another language.`;
+
+/**
+ * Always send the redline policy, even when a custom system prompt is configured.
+ * The built-in prompt already contains it, so avoid duplicating the block.
+ */
+export function composeSystemPrompt(systemPrompt: string): string {
+  const base = systemPrompt.trim();
+  const withRedline = base.includes(REDLINE_POLICY_PROMPT)
+    ? base
+    : `${base}\n\n${REDLINE_POLICY_PROMPT}`;
+  return `${withRedline}\n\n${LIVE_STATE_POLICY}`;
+}
 
 /** A backstop for common live-state requests; the policy applies to all turns. */
 export function needsLiveCommand(text: string): boolean {
@@ -283,7 +303,9 @@ export class AgentLoop {
     const { provider } = this.opts;
     const base = provider.baseUrl.replace(/\/+$/, '');
     const stream = provider.stream !== false;
-    const systemPrompt = this.opts.systemPrompt ?? DEFAULT_SYSTEM_PROMPT;
+    const systemPrompt = composeSystemPrompt(
+      this.opts.systemPrompt ?? DEFAULT_SYSTEM_PROMPT
+    );
     const context = this.trimForContext(messages);
     let turnStart = context.length - 1;
     while (turnStart >= 0 && context[turnStart]?.role !== 'user') turnStart--;
@@ -303,7 +325,7 @@ export class AgentLoop {
     const body: Record<string, unknown> = {
       model: provider.model,
       messages: [
-        { role: 'system', content: `${systemPrompt}\n\n${LIVE_STATE_POLICY}` },
+        { role: 'system', content: systemPrompt },
         ...markedContext,
       ],
       tools: this.toolsParam,

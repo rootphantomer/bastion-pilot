@@ -194,6 +194,7 @@ export async function startDaemon(opts: DaemonOptions = {}): Promise<DaemonHandl
   const auditAppend = async (partial: {
     ok: boolean;
     error?: string;
+    redlineIds?: string[];
     exitCode?: number | null;
     outputChars?: number;
     outputFile?: string;
@@ -213,6 +214,7 @@ export async function startDaemon(opts: DaemonOptions = {}): Promise<DaemonHandl
       ok: partial.ok,
       durationMs: Date.now() - partial.startedAt,
       error: partial.error,
+      redlineIds: partial.redlineIds,
       exitCode: partial.exitCode,
       outputChars: partial.outputChars,
       outputFile: partial.outputFile,
@@ -423,6 +425,7 @@ export async function startDaemon(opts: DaemonOptions = {}): Promise<DaemonHandl
       await auditAppend({
         ok: false,
         error: `blocked: ${decision.reason}`,
+        redlineIds: decision.redlineIds,
         params,
         sessionId,
         source,
@@ -441,6 +444,7 @@ export async function startDaemon(opts: DaemonOptions = {}): Promise<DaemonHandl
         await auditAppend({
           ok: false,
           error: (err as Error).message,
+          redlineIds: decision.redlineIds,
           params: transferAuditParams(tool, params),
           sessionId,
           source,
@@ -458,6 +462,7 @@ export async function startDaemon(opts: DaemonOptions = {}): Promise<DaemonHandl
       await auditAppend({
         ok: false,
         error: (err as Error).message,
+        redlineIds: decision.redlineIds,
         params,
         sessionId,
         source,
@@ -482,6 +487,7 @@ export async function startDaemon(opts: DaemonOptions = {}): Promise<DaemonHandl
 
     await auditAppend({
       ok: true,
+      redlineIds: decision.redlineIds,
       exitCode:
         typeof (result as Record<string, unknown>)?.exitCode === 'number'
           ? ((result as Record<string, unknown>).exitCode as number)

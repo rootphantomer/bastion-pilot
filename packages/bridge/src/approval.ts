@@ -1,5 +1,10 @@
 import crypto from 'node:crypto';
-import { ToolName } from '@bastion-pilot/protocol';
+import {
+  ToolName,
+  inspectRedlines,
+  toRedlineWarning,
+  type RedlineWarning,
+} from '@bastion-pilot/protocol';
 
 const READONLY_TOOLS = new Set<string>([
   ToolName.ListSessions,
@@ -24,12 +29,16 @@ export interface ApprovalRequest {
   tool: string;
   sessionId?: string;
   summary: string;
+  /** Present when a built-in ops redline matched; forces a secondary confirmation. */
+  redline?: RedlineWarning;
   expiresAt: number;
 }
 
 export interface ApprovalDecision {
   approved: boolean;
   reason: string;
+  /** Redline ids hit by this call, recorded in the audit log. */
+  redlineIds?: string[];
 }
 
 export type UserApprovalGate = (req: ApprovalRequest) => Promise<boolean>;
@@ -84,13 +93,21 @@ export class ApprovalEngine {
     // intentionally approval-free; commands, keystrokes and file transfers
     // still require an explicit decision in the strict product policy.
     if (isReadonlyTool(tool)) return { approved: true, reason: 'read-only tool' };
+
     const summary = summarizeToolCall(tool, params);
-    const strict =
-      this.policy.requireUserApproval === true ||
-      (this.policy.requireUserApproval === undefined && this.policy.mode === 'confirm');
-    if (strict) {
+    const findings = inspectRedlines(tool, params);
+    const redlineIds = findings.map((finding) => finding.id);
+    const redline = toRedlineWarning(findings);
+
+    const askUser = async (): Promise<ApprovalDecision> => {
       if (!this.gate) {
-        return { approved: false, reason: 'user approval is required, but no panel is connected' };
+        return {
+          approved: false,
+          reason: redline
+            ? 'redline hit requires secondary confirmation, but no panel is connected'
+            : 'user approval is required, but no panel is connected',
+          redlineIds,
+        };
       }
       const timeoutMs = this.policy.confirmTimeoutMs ?? 120_000;
       const request: ApprovalRequest = {
@@ -99,17 +116,40 @@ export class ApprovalEngine {
         tool,
         sessionId: typeof params.sessionId === 'string' ? params.sessionId : undefined,
         summary,
+        ...(redline ? { redline } : {}),
         expiresAt: Date.now() + timeoutMs,
       };
-      const approved = await Promise.race([
-        this.gate(request).catch(() => false),
-        new Promise<false>((resolve) => setTimeout(() => resolve(false), timeoutMs)),
-      ]);
-      return {
-        approved,
-        reason: approved ? 'approved by user' : 'denied by user or confirmation timed out',
-      };
-    }
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      try {
+        const approved = await Promise.race([
+          this.gate(request).catch(() => false),
+          new Promise<false>((resolve) => {
+            timer = setTimeout(() => resolve(false), timeoutMs);
+          }),
+        ]);
+        return {
+          approved,
+          reason: approved
+            ? redline
+              ? 'approved by user after redline secondary confirmation'
+              : 'approved by user'
+            : 'denied by user or confirmation timed out',
+          redlineIds,
+        };
+      } finally {
+        if (timer) clearTimeout(timer);
+      }
+    };
+
+    // A redline always needs a visible second confirmation, even in legacy
+    // auto/allowlist modes that otherwise skip the approval prompt.
+    if (redline) return askUser();
+
+    const strict =
+      this.policy.requireUserApproval === true ||
+      (this.policy.requireUserApproval === undefined && this.policy.mode === 'confirm');
+    if (strict) return askUser();
+
     switch (this.policy.mode) {
       case 'auto':
         return { approved: true, reason: 'policy: auto' };
@@ -137,28 +177,8 @@ export class ApprovalEngine {
                 'Ask the user to switch the approval mode or add a readonlyAllowlist entry.',
             };
       }
-      case 'confirm': {
-        const timeoutMs = this.policy.confirmTimeoutMs ?? 120_000;
-        if (!this.gate) {
-          return { approved: false, reason: 'policy: confirm, but no user interface is connected' };
-        }
-        const request: ApprovalRequest = {
-          requestId: crypto.randomUUID(),
-          source,
-          tool,
-          sessionId: typeof params.sessionId === 'string' ? params.sessionId : undefined,
-          summary,
-          expiresAt: Date.now() + timeoutMs,
-        };
-        const approved = await Promise.race([
-          this.gate(request).catch(() => false),
-          new Promise<false>((resolve) => setTimeout(() => resolve(false), timeoutMs)),
-        ]);
-        return {
-          approved,
-          reason: approved ? 'approved by user' : 'denied by user or confirmation timed out',
-        };
-      }
+      case 'confirm':
+        return askUser();
     }
   }
 }

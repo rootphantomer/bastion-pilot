@@ -69,6 +69,26 @@ describe('messages', () => {
     expect(parsedResponse.ok).toBe(true);
   });
 
+  it('round-trips an approval request with a redline warning', () => {
+    const env = makeEnvelope('approval_request', {
+      requestId: 'req-1',
+      source: 'mcp',
+      tool: 'send_command',
+      summary: 'command: reboot',
+      redline: {
+        title: '违反红线，需二次确认',
+        details: ['禁止关机重启：会中断业务，必须在指定窗口确认。'],
+      },
+      expiresAt: Date.now() + 1000,
+    });
+    const parsed = parseDaemonMessage(JSON.parse(JSON.stringify(env)));
+    expect(parsed.ok).toBe(true);
+    if (parsed.ok && parsed.message.type === 'approval_request') {
+      expect(parsed.message.payload.redline?.title).toBe('违反红线，需二次确认');
+      expect(parsed.message.payload.redline?.details[0]).toContain('禁止关机重启');
+    }
+  });
+
   it('validates every tool schema accepts a minimal call and rejects garbage', () => {
     for (const name of TOOL_NAMES) {
       const schema = toolSchema(name);

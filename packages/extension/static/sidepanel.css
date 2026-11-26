@@ -43,8 +43,13 @@ body { margin: 0; display: flex; flex-direction: column; height: 100vh; overflow
 .approvals { display: flex; flex-direction: column; gap: 6px; max-height: 180px; overflow-y: auto; }
 .approvals:empty { display: none; }
 .approval { padding: 9px 10px; border: 1px solid #e6c77b; border-radius: 11px; background: #fff8e7; font-size: 12px; }
+.approval.redline { border-color: #c0392b; background: #fff1ef; box-shadow: inset 3px 0 0 #c0392b; }
 .approval .title { font-weight: 750; color: var(--warn); margin-bottom: 2px; }
+.approval.redline .title { color: #a5281b; }
+.approval .redline-warning { margin: 5px 0; padding: 6px 7px; border-radius: 7px; border: 1px solid #e6a29a; background: #ffe3de; color: #8f1f15; font-weight: 750; line-height: 1.45; }
+.approval .redline-warning.hidden { display: none; }
 .approval .summary { color: #6f5b35; }
+.approval.redline .summary { color: #7a4b44; }
 .approval .actions { display: flex; gap: 7px; margin-top: 7px; }
 .approval button { flex: 1; padding: 5px 0; border-radius: 7px; border: 1px solid var(--line); background: var(--paper-strong); color: var(--ink); cursor: pointer; font: inherit; }
 .approval button.approve:hover { border-color: var(--ok); color: var(--ok); }

@@ -294,6 +294,26 @@ describe('daemon e2e', () => {
     expect(entry).toMatchObject({ tool: 'get_screen', source: 'mcp', ok: true });
   });
 
+  it('records redline ids when a confirmed redline tool fails', async () => {
+    const { ext, brain, home } = await boot('confirm');
+    ext.onApprovalRequest = (req) => ext.replyApproval(req.requestId, true);
+    ext.onToolCall = (call) => ext.replyToolError(call.callId, 'terminal not ready');
+    await expect(
+      brain.executeTool('mcp', 'send_command', { sessionId: 'sess_1', command: 'reboot' })
+    ).rejects.toThrow(/terminal not ready/);
+    await new Promise((r) => setTimeout(r, 50));
+    const auditDir = path.join(home, 'audit');
+    const entries = fs.readdirSync(auditDir).map(
+      (file) =>
+        JSON.parse(fs.readFileSync(path.join(auditDir, file), 'utf8')) as {
+          error?: string;
+          redlineIds?: string[];
+        }
+    );
+    const entry = entries.find((item) => item.error?.includes('terminal not ready'));
+    expect(entry?.redlineIds).toContain('shutdown-host');
+  });
+
   it('asks the user for approval in confirm mode and honors consent', async () => {
     const { ext, brain } = await boot('confirm');
     ext.onApprovalRequest = (req) => ext.replyApproval(req.requestId, true);

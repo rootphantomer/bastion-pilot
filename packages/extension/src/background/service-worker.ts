@@ -33,6 +33,7 @@ interface PendingApproval {
   tool: string;
   sessionId?: string;
   summary: string;
+  redline?: { title: string; details: string[] };
   expiresAt: number;
 }
 
@@ -292,6 +293,7 @@ async function onDaemonMessage(msg: DaemonMessage) {
         tool: msg.payload.tool,
         sessionId: msg.payload.sessionId,
         summary: msg.payload.summary,
+        redline: msg.payload.redline,
         expiresAt: msg.payload.expiresAt,
       };
       pendingApprovals.set(req.requestId, req);
@@ -346,8 +348,10 @@ function notifyApproval(req: PendingApproval) {
     chrome.notifications.create(id, {
       type: 'basic',
       iconUrl: 'icons/icon128.png',
-      title: 'BastionPilot — approval required',
-      message: req.summary,
+      title: req.redline
+        ? 'BastionPilot — 违反红线，需二次确认'
+        : 'BastionPilot — approval required',
+      message: req.redline ? `${req.redline.title}\n${req.summary}` : req.summary,
     });
   } catch {
     /* notifications unavailable; the side panel still shows the banner */
