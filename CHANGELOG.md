@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.2.3-no-remote-ai] - 2026-11-26
+
 ### 变更
 
 - 侧边栏不再回放共享上下文历史：关闭侧边栏即清空消息列表，重新打开从空白开始，只显示打开期间

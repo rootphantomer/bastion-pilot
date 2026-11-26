@@ -1,6 +1,6 @@
 {
   "name": "bastion-pilot",
-  "version": "0.2.2-no-remote-ai",
+  "version": "0.2.3-no-remote-ai",
   "type": "module",
   "description": "BastionPilot local bridge: daemon (WS hub, approvals, audit) + MCP server + built-in agent loop. Bring AI agents to bastion-host web terminals.",
   "license": "MIT",

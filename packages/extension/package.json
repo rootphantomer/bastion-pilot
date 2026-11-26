@@ -1,6 +1,6 @@
 {
   "name": "@bastion-pilot/extension",
-  "version": "0.2.2-no-remote-ai",
+  "version": "0.2.3-no-remote-ai",
   "private": true,
   "type": "module",
   "description": "BastionPilot browser extension: hooks bastion web terminals for AI agents",
